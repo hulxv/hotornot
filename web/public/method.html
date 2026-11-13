@@ -7,11 +7,20 @@
     <meta name="description" content="How HotOrNot puts MODIS and VIIRS hotspots on one scale, and the held-out tests that show it works.">
     <link rel="stylesheet" href="/css/base.css">
     <link rel="stylesheet" href="/js/method/method.css">
-    <script src="/vendor/echarts.min.js" defer></script>
+    <link rel="modulepreload" href="/js/method/page.js">
+    <link rel="modulepreload" href="/js/method/option.js">
+    <link rel="modulepreload" href="/js/method/html.js">
+    <link rel="modulepreload" href="/js/method/transform.js">
+    <link rel="modulepreload" href="/js/method/palette.js">
+    <link rel="modulepreload" href="/js/calendar/transform.js">
+    <link rel="modulepreload" href="/js/calendar/palette.js">
+    <link rel="modulepreload" href="/js/calendar/color.js">
+    <link rel="modulepreload" href="/shared/contracts.js">
     <script type="module">
       import { startMethodPage } from "/js/method/page.js";
       startMethodPage(document);
     </script>
+    <script src="/vendor/echarts.min.js?v=6.1.0" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#content">Skip to the content</a>

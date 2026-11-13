@@ -57,7 +57,10 @@ const FIELD_LABELS = {
 
 const MESSAGES = {
   drawing:
-    "Drawing: click the map to add corners. Click the first or last corner, or press Enter, to finish. Escape cancels.",
+    "Drawing: click the map to add corners. Click the first or last corner, or press Enter, to finish. Escape cancels. " +
+    "Using a keyboard? Press Escape, then type a box.",
+  keyboard:
+    "Drawing needs a mouse or touch screen, so the box form is open instead: type the west, south, east and north edges, then choose Use this box.",
   drawn: "Area set. Drag a corner to move it, drag a midpoint to add a corner, or draw a new area.",
   edited: "Area updated.",
   cancelled: "Drawing cancelled.",
@@ -100,7 +103,14 @@ function buildPanel(container, regions, prefix) {
   const presets = regions.map((region) =>
     el("button", { type: "button", class: "hon-map__button", "data-region": region.id, text: region.name }),
   );
-  const drawButton = el("button", { type: "button", class: "hon-map__button", "aria-pressed": "false", text: "Draw area" });
+  const drawHintId = `${prefix}-draw-hint`;
+  const drawButton = el("button", {
+    type: "button",
+    class: "hon-map__button",
+    "aria-pressed": "false",
+    "aria-describedby": drawHintId,
+    text: "Draw area",
+  });
   const clearButton = el("button", { type: "button", class: "hon-map__button", text: "Clear area" });
 
   /** @type {Record<string, HTMLInputElement>} */
@@ -140,6 +150,7 @@ function buildPanel(container, regions, prefix) {
     )
   );
 
+  const box = el("details", { class: "hon-map__box" }, el("summary", { text: "Type a latitude and longitude box" }), form);
   const presetLabel = `${prefix}-presets`;
   const drawLabel = `${prefix}-draw`;
   const tools = el(
@@ -156,9 +167,10 @@ function buildPanel(container, regions, prefix) {
       { class: "hon-map__group", role: "group", "aria-labelledby": drawLabel },
       el("span", { id: drawLabel, class: "hon-map__group-label", text: "Your area:" }),
       drawButton,
+      el("span", { id: drawHintId, class: "hon-map__sr-only", text: "Uses a mouse or touch screen. From the keyboard it opens the box form." }),
       clearButton,
     ),
-    el("details", { class: "hon-map__box" }, el("summary", { text: "Type a latitude and longitude box" }), form),
+    box,
   );
 
   const status = el("p", { class: "hon-map__status", role: "status" });
@@ -177,7 +189,7 @@ function buildPanel(container, regions, prefix) {
 
   container.classList.add("hon-map");
   container.append(tools, status, canvas, legend);
-  return { presets, drawButton, clearButton, form, inputs, errors, status, canvas, countedCount, uncoveredCount };
+  return { presets, drawButton, clearButton, box, form, inputs, errors, status, canvas, countedCount, uncoveredCount };
 }
 
 /** @param {Aoi} polygon */
@@ -353,6 +365,13 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
     announce(MESSAGES.drawing);
   }
 
+  /** Drawing needs a pointer; keyboard users get the box form, opened and focused. */
+  function openBoxForm() {
+    ui.box.open = true;
+    ui.inputs.west.focus();
+    announce(MESSAGES.keyboard);
+  }
+
   function cancelDrawing() {
     setDrawing(false);
     announce(MESSAGES.cancelled);
@@ -432,8 +451,10 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
     });
   }
 
-  ui.drawButton.addEventListener("click", () => {
+  ui.drawButton.addEventListener("click", (event) => {
     if (drawing) cancelDrawing();
+    // A click from Enter or Space, or from a screen reader, has detail 0; a mouse or touch click has 1 or more.
+    else if (/** @type {MouseEvent} */ (event).detail === 0) openBoxForm();
     else startDrawing();
   });
 

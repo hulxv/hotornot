@@ -11,7 +11,7 @@ const count = (n) => n.toLocaleString("en-US");
 /**
  * Plain-language text for an API or network error. `regions` (for `outside_regions`) are the
  * regions the user can switch to, with their display names.
- * @param {Pick<ApiError, "code" | "message" | "regions" | "retryAfter">} error
+ * @param {Pick<ApiError, "code" | "message" | "regions" | "retryAfter"> & { status?: number }} error
  * @param {Pick<RegionMeta, "id" | "name">[]} regions from `/api/metadata`
  * @returns {Message}
  */
@@ -60,8 +60,11 @@ export function errorMessage(error, regions) {
     }
     case "network":
       return { title: "The server can't be reached.", detail: "Check your connection, then try again." };
-    default:
-      return { title: "Something went wrong on the server.", detail: `Try again in a moment. (${error.message})` };
+    default: {
+      const where = error.status ? "on the server" : "in this page";
+      const what = (error.message ?? "").trim().replace(/^./, (c) => c.toUpperCase()).replace(/([^.])$/, "$1.");
+      return { title: `Something went wrong ${where}.`, detail: `Try again in a moment, or reload the page.${what ? ` ${what}` : ""}` };
+    }
   }
 }
 

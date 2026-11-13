@@ -13,6 +13,9 @@ const PUBLIC_DIR = join(ROOT, "public");
 const API_DIR = join(ROOT, "api");
 const API_ROUTE = /^\/api\/([a-z0-9-]+(?:\/[a-z0-9-]+)*)$/;
 const MAX_BODY_BYTES = 1 << 20;
+// Vendored files are pinned and the pages load them as /vendor/<file>?v=<version>, so a new
+// version gets a new URL. vercel.json sends the same header on Vercel.
+const VENDOR_CACHE = "public, max-age=31536000, immutable";
 
 const CONTENT_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -97,11 +100,17 @@ async function serveStatic(req, res, pathname) {
   const file = resolve(PUBLIC_DIR, `.${path}`);
   const hidden = path.split("/").some((part) => part.startsWith("."));
   if (hidden || !file.startsWith(PUBLIC_DIR + sep) || !(await isFile(file))) return sendText(res, 404, "Not found");
-  const { size } = await stat(file);
-  res.writeHead(200, {
+  const { size, mtime } = await stat(file);
+  const headers = {
     "content-type": CONTENT_TYPES[extname(file).toLowerCase()] ?? "application/octet-stream",
-    "content-length": size,
-  });
+    "cache-control": path.startsWith("/vendor/") ? VENDOR_CACHE : "no-cache",
+    "last-modified": mtime.toUTCString(),
+  };
+  if (Date.parse(req.headers["if-modified-since"] ?? "") >= Math.floor(mtime.getTime() / 1000) * 1000) {
+    res.writeHead(304, headers);
+    return res.end();
+  }
+  res.writeHead(200, { ...headers, "content-length": size });
   if (req.method === "HEAD") return res.end();
   await pipeline(createReadStream(file), res);
 }

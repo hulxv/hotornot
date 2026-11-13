@@ -1,4 +1,4 @@
-import { markColor } from "./color.js";
+import { edgeColor, markColor } from "./color.js";
 import { CALENDAR_PALETTE } from "./palette.js";
 import { describeCalendar, formatNumber, seasonText, tooltipLines, unitsLabel } from "./transform.js";
 
@@ -50,20 +50,21 @@ const line = ([x1, y1, x2, y2], stroke) => ({ type: "line", shape: { x1, y1, x2,
 /**
  * ECharts graphic elements for one cell: the fill or the no-data outline, then the
  * not-enough-history stripes, the provisional hatching and the partial-coverage dot. A no-data
- * cell gets no flag marks: there is nothing in it for them to qualify.
+ * cell gets no flag marks: there is nothing in it for them to qualify. A fill below 3:1 against
+ * the background (the zero gray, the anomaly ramp's center, the light end of viridis) gets a
+ * 1 px edge in a darker shade of itself, so every cell stands out from the page.
  * @param {Pick<Cell, "kind" | "color" | "provisional" | "partial">} cell
  */
 export function cellShapes(cell, x, y, w, h, palette = CALENDAR_PALETTE) {
   const hover = { style: { stroke: palette.hover, lineWidth: 2 } };
   const fill = cell.kind === "no_data" ? palette.noData.fill : cell.color;
+  const inset = { x: x + 0.5, y: y + 0.5, width: Math.max(0, w - 1), height: Math.max(0, h - 1) };
+  const edge = cell.kind === "value" || cell.kind === "zero" ? edgeColor(fill, palette.background) : null;
   const shapes = [];
   if (cell.kind === "no_data") {
-    shapes.push({
-      type: "rect",
-      shape: { x: x + 0.5, y: y + 0.5, width: Math.max(0, w - 1), height: Math.max(0, h - 1) },
-      style: { fill, stroke: palette.noData.stroke, lineWidth: 1 },
-      emphasis: hover,
-    });
+    shapes.push({ type: "rect", shape: inset, style: { fill, stroke: palette.noData.stroke, lineWidth: 1 }, emphasis: hover });
+  } else if (edge) {
+    shapes.push({ type: "rect", shape: inset, style: { fill, stroke: edge, lineWidth: 1 }, emphasis: hover });
   } else {
     shapes.push({ type: "rect", shape: { x, y, width: w, height: h }, style: { fill }, emphasis: hover });
   }
