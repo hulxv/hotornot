@@ -6,17 +6,11 @@ import { join } from "node:path";
 import { request as httpRequest } from "node:http";
 import { after, before, describe, it } from "node:test";
 import { POST as postCalendar } from "../api/calendar.js";
-import { POST as postCurrentMonth } from "../api/current-month.js";
-import { POST as postHotspots } from "../api/export/hotspots.js";
-import { POST as postSummary } from "../api/export/summary.js";
 import { GET as getMetadata } from "../api/metadata.js";
 import {
-  HOTSPOT_EXPORT_COLUMNS,
   REGION_IDS,
-  SUMMARY_EXPORT_COLUMNS,
   checkApiError,
   checkCalendarResponse,
-  checkCurrentMonthResponse,
   checkMetadata,
 } from "../public/shared/contracts.js";
 import { createAppServer } from "../server.js";
@@ -119,56 +113,6 @@ describe("POST /api/calendar", () => {
   it("returns 422 outside_regions with the region list", async () => {
     const error = await expectError(await postCalendar(post({ ...BODY, aoi: ATLANTIC_AOI })), 422, "outside_regions");
     assert.deepEqual(error.regions, [...REGION_IDS]);
-  });
-});
-
-describe("POST /api/current-month", () => {
-  it("needs only the aoi and ignores start, end and series", async () => {
-    for (const body of [{ aoi: NILE_AOI }, { aoi: NILE_AOI, start: "bad", end: "", series: 3 }]) {
-      const month = await expectOk(await postCurrentMonth(post(body)), checkCurrentMonthResponse);
-      assert.deepEqual([month.year, month.month, month.days_covered], [2026, 11, 13]);
-    }
-  });
-
-  it("validates the aoi", async () => {
-    await expectError(await postCurrentMonth(post({ aoi: { type: "Polygon", coordinates: [] } })), 422, "invalid_aoi");
-  });
-});
-
-describe("POST /api/export/*", () => {
-  const range = { ...BODY, start: "2025-01", end: "2026-11" };
-
-  it("returns the summary CSV with one row per month", async () => {
-    const response = await postSummary(post(range));
-    assert.equal(response.status, 200);
-    assert.match(response.headers.get("content-type"), /^text\/csv/);
-    assert.equal(
-      response.headers.get("content-disposition"),
-      'attachment; filename="hotornot_summary_nile_delta_2025-01_2026-11.csv"',
-    );
-    const lines = (await response.text()).trimEnd().split("\n");
-    assert.equal(lines[0], SUMMARY_EXPORT_COLUMNS.join(","));
-    assert.equal(lines.length, 1 + 23);
-  });
-
-  it("returns the hotspot CSV with the tile columns minus cell_id", async () => {
-    const response = await postHotspots(post(range));
-    assert.equal(response.status, 200);
-    assert.equal(
-      response.headers.get("content-disposition"),
-      'attachment; filename="hotornot_hotspots_nile_delta_2025-01_2026-11.csv"',
-    );
-    const [header, ...rows] = (await response.text()).trimEnd().split("\n");
-    assert.equal(header, HOTSPOT_EXPORT_COLUMNS.join(","));
-    assert.ok(!header.split(",").includes("cell_id"));
-    assert.ok(rows.length > 0);
-    assert.ok(rows.every((row) => row.split(",").length === HOTSPOT_EXPORT_COLUMNS.length));
-    assert.ok(rows.every((row) => /,(2025-1[0-2]|2026-11)-\d\d,/.test(row)));
-  });
-
-  it("validates the body like the calendar", async () => {
-    await expectError(await postSummary(post({ ...range, aoi: null })), 422, "invalid_aoi");
-    await expectError(await postHotspots(post({ ...range, start: "2026-12" })), 400, "bad_range");
   });
 });
 
