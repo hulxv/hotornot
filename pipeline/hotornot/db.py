@@ -62,8 +62,6 @@ def create_artifacts_table(con=None):
 
 
 def _jsonable(obj):
-    if hasattr(obj, "tolist"):  # numpy arrays and scalars
-        return obj.tolist()
     if isinstance(obj, date):
         return obj.isoformat()
     raise TypeError(f"{type(obj).__name__} is not JSON serializable")

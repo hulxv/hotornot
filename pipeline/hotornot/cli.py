@@ -1,4 +1,4 @@
-"""`hotornot <step>`: one subcommand for each step module in hotornot/steps/."""
+"""`python -m hotornot <step>`: one subcommand for each step module in hotornot/steps/."""
 import argparse
 import importlib
 import pkgutil
@@ -32,7 +32,7 @@ def discover_steps(package="hotornot.steps"):
 
 def build_parser(steps):
     parser = argparse.ArgumentParser(
-        prog="hotornot",
+        prog="python -m hotornot",
         description="HotOrNot pipeline. The database is $HOTORNOT_DB "
                     "(default pipeline/data/hotornot.sqlite).")
     sub = parser.add_subparsers(dest="step", metavar="STEP", required=True)
@@ -46,7 +46,3 @@ def build_parser(steps):
 def main(argv=None, package="hotornot.steps"):
     args = build_parser(discover_steps(package)).parse_args(argv)
     return args._step.run(args)
-
-
-if __name__ == "__main__":
-    sys.exit(main())
