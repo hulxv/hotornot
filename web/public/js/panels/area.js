@@ -66,7 +66,11 @@ export function snapForMap(aoi, regions) {
   return { regionId: region.id, counted: coveredCells, uncovered: cells.filter((id) => !covered.has(id)) };
 }
 
-const count = (n) => n.toLocaleString("en-US");
+/**
+ * @param {string} regionName
+ * @param {boolean} preset whether the area is the region's whole box
+ */
+export const areaLabel = (regionName, preset) => (preset ? regionName : `Your area in ${regionName}`);
 
 /**
  * @param {CalendarResponse} response
@@ -75,15 +79,14 @@ const count = (n) => n.toLocaleString("en-US");
  */
 export function areaSummary(response, regionName, preset) {
   const { cells, covered_cells: covered, area_km2: area } = response.aoi;
-  const what = preset ? `All of ${regionName}` : `Your area in ${regionName}`;
-  const uncovered = cells - covered;
-  const cellText = `${count(covered)} grid cell${covered === 1 ? "" : "s"} counted` + (uncovered > 0 ? `, ${count(uncovered)} without data` : "");
-  return `${what}: ${cellText}, ${count(Math.round(area))} km².`;
+  const size = Number(area.toPrecision(2)).toLocaleString("en-US");
+  const gaps = cells > covered ? " Hatched parts on the map have no data and are not counted." : "";
+  return `Counting fires in ${preset ? "all of" : "your area in"} ${regionName}, about ${size} km².${gaps}`;
 }
 
 /**
  * @param {{ summary: HTMLElement, warning: HTMLElement, message: HTMLElement }} elements
- * @param {{ status: "loading" } | { status: "empty", text: string }
+ * @param {{ status: "loading" }
  *   | { status: "error", message: Message, onRegion?: (id: string) => void }
  *   | { status: "ready", response: CalendarResponse, regionName: string, preset: boolean }} view
  */
@@ -95,8 +98,7 @@ export function renderArea({ summary, warning, message }, view) {
   if (view.status !== "error") message.replaceChildren();
   message.hidden = view.status !== "error";
 
-  if (view.status === "loading") summary.replaceChildren(skeleton(["90%", "55%"]));
-  else if (view.status === "empty") summary.replaceChildren(h("span", { class: "muted", text: view.text }));
+  if (view.status === "loading") summary.replaceChildren(skeleton(["60%"]));
   else if (view.status === "ready") summary.replaceChildren(areaSummary(view.response, view.regionName, view.preset));
   else {
     summary.replaceChildren();

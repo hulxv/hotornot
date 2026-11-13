@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>HotOrNot · Burning calendar</title>
-    <meta name="description" content="A harmonized MODIS and VIIRS burning activity calendar, from 2000 to today. Pick an area and compare this month with its history.">
+    <title>Hot or Not · Is this place burning more than usual?</title>
+    <meta name="description" content="Pick a place and see whether it is burning more than usual this month, from satellite fire detections since 2000 (MODIS and VIIRS on one scale).">
     <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
     <link rel="stylesheet" href="/vendor/maplibre-gl.css?v=5.24.1">
     <link rel="stylesheet" href="/css/base.css">
@@ -19,14 +19,15 @@
     <link rel="modulepreload" href="/js/calendar/color.js">
     <link rel="modulepreload" href="/js/client-api.js">
     <link rel="modulepreload" href="/js/url-state.js">
+    <link rel="modulepreload" href="/js/verdict.js">
     <link rel="modulepreload" href="/js/map/map.js">
     <link rel="modulepreload" href="/js/map/geometry.js">
     <link rel="modulepreload" href="/js/map/labels.js">
     <link rel="modulepreload" href="/js/panels/area.js">
-    <link rel="modulepreload" href="/js/panels/current-month.js">
     <link rel="modulepreload" href="/js/panels/dom.js">
     <link rel="modulepreload" href="/js/panels/exports.js">
     <link rel="modulepreload" href="/js/panels/messages.js">
+    <link rel="modulepreload" href="/js/panels/verdict-card.js">
     <link rel="modulepreload" href="/shared/contracts.js">
     <link rel="modulepreload" href="/shared/grid.js">
     <link rel="modulepreload" href="/shared/aoi.js">
@@ -44,73 +45,82 @@
     <header class="app-header">
       <div class="app-header__inner">
         <div class="brand">
-          <h1 class="brand__name">HotOrNot</h1>
-          <p class="brand__tagline">Burning activity since 2000, MODIS and VIIRS on one scale</p>
+          <h1 class="brand__name">Hot or Not</h1>
+          <p class="brand__tagline">Is this place burning more than usual? Satellite fire detections since 2000.</p>
         </div>
         <nav class="app-nav" aria-label="Pages">
           <a href="/method.html">How it works</a>
         </nav>
-        <div class="controls">
-          <div class="control" role="group" aria-labelledby="regions-label">
-            <span class="control__label" id="regions-label">Region</span>
-            <div class="control__buttons" id="region-presets">
-              <span class="skeleton__line skeleton__line--inline" aria-hidden="true"></span>
-            </div>
-          </div>
-          <fieldset class="control">
-            <legend class="control__label">View</legend>
-            <div class="segmented" id="view-toggle">
-              <label><input type="radio" name="view" value="harmonized" checked><span>Harmonized</span></label>
-              <label><input type="radio" name="view" value="anomaly"><span>Anomaly</span></label>
-              <label><input type="radio" name="view" value="raw"><span>Raw MODIS and VIIRS</span></label>
-            </div>
-          </fieldset>
-          <fieldset class="control">
-            <legend class="control__label">Years</legend>
-            <div class="control__row">
-              <label class="select">From <select id="range-from" disabled></select></label>
-              <label class="select">to <select id="range-to" disabled></select></label>
-              <label class="checkbox"><input type="checkbox" id="july-start"> Start the year in July</label>
-            </div>
-          </fieldset>
-        </div>
       </div>
       <p class="notice" id="notice" role="status" hidden></p>
     </header>
 
-    <main class="layout" id="content">
+    <main class="page" id="content">
+      <section class="picker" aria-labelledby="picker-heading">
+        <h2 class="section-title" id="picker-heading">Pick a place</h2>
+        <div class="regions" id="region-presets">
+          <span class="skeleton__line skeleton__line--inline" aria-hidden="true"></span>
+        </div>
+        <div class="picker__own">
+          <button type="button" class="button" id="draw-area" aria-describedby="draw-area-hint" disabled>Draw your own area</button>
+          <span class="visually-hidden" id="draw-area-hint">Uses a mouse or touch screen. From the keyboard it opens the coordinates form.</span>
+          <button type="button" class="link-button" id="type-coordinates" disabled>Type coordinates</button>
+        </div>
+        <p class="area-summary muted" id="area-summary" aria-live="polite"></p>
+        <p class="banner banner--warning" id="clip-warning" role="status" hidden></p>
+        <div class="banner banner--error message" id="area-message" role="alert" hidden></div>
+      </section>
+
+      <section class="card verdict" id="verdict-card" aria-labelledby="verdict-heading" data-verdict="none">
+        <h2 class="verdict__heading" id="verdict-heading">
+          <span class="verdict__question">Hot or not?</span>
+          <span class="verdict__where" id="verdict-where"></span>
+        </h2>
+        <div class="verdict__body" id="verdict" aria-live="polite"></div>
+        <details class="why">
+          <summary>Why comparable?</summary>
+          <p>
+            VIIRS sees smaller fires than MODIS, so each VIIRS detection is weighted to count as MODIS would have.
+            That puts 2000 and today on one scale. <a href="/method.html">The full method</a> shows how, and how well it works.
+          </p>
+        </details>
+        <p class="try"><span class="try__label">Try:</span> <span class="try__links" id="examples"></span></p>
+      </section>
+
       <section class="map-section" aria-labelledby="map-heading">
-        <h2 class="visually-hidden" id="map-heading">Pick an area</h2>
+        <h2 class="visually-hidden" id="map-heading">Map</h2>
         <div class="map" id="map"></div>
       </section>
 
-      <aside class="side" aria-label="This area">
-        <section class="card" aria-labelledby="area-heading">
-          <h2 class="card__title" id="area-heading">Your area</h2>
-          <p class="area-summary" id="area-summary" aria-live="polite"></p>
-          <p class="banner banner--warning" id="clip-warning" role="status" hidden></p>
-          <div class="banner banner--error message" id="area-message" role="alert" hidden></div>
-        </section>
-        <section class="card month-card" aria-labelledby="month-heading">
-          <h2 class="card__title" id="month-heading">This month so far</h2>
-          <div class="month-card__body" id="current-month" aria-live="polite"></div>
-        </section>
-        <section class="card" aria-labelledby="exports-heading">
-          <h2 class="card__title" id="exports-heading">Download</h2>
-          <div id="exports"></div>
-        </section>
-        <section class="card" aria-labelledby="method-heading">
-          <h2 class="card__title" id="method-heading">How the calendar is built</h2>
-          <p>
-            Each VIIRS hotspot is weighted to count as much as MODIS would have seen, so 2000 and today share one unit:
-            MODIS-equivalent hotspots.
-          </p>
-          <p><a href="/method.html">Read the method and its validation</a></p>
-        </section>
-      </aside>
-
       <section class="calendar-section card" id="calendar-section" aria-labelledby="calendar-heading" tabindex="-1">
-        <h2 class="visually-hidden" id="calendar-heading">Burning calendar</h2>
+        <div class="calendar-bar">
+          <h2 class="section-title" id="calendar-heading">Month by month</h2>
+          <fieldset class="segmented" id="view-toggle">
+            <legend class="visually-hidden">What the colors show</legend>
+            <label><input type="radio" name="view" value="harmonized" checked><span>Fire count</span></label>
+            <label><input type="radio" name="view" value="anomaly"><span>Compared with normal</span></label>
+          </fieldset>
+          <div class="calendar-bar__menus">
+            <details class="menu" id="more-options">
+              <summary class="button">More options</summary>
+              <div class="menu__panel">
+                <fieldset class="options">
+                  <legend>Years</legend>
+                  <label class="select">From <select id="range-from" disabled></select></label>
+                  <label class="select">to <select id="range-to" disabled></select></label>
+                  <p class="muted options__hint">The verdict is about the last month shown.</p>
+                </fieldset>
+                <label class="checkbox"><input type="checkbox" id="july-start"> Start the year in July</label>
+                <label class="checkbox"><input type="checkbox" id="raw-view"> Show raw MODIS and VIIRS counts, before harmonizing</label>
+              </div>
+            </details>
+            <details class="menu" id="downloads">
+              <summary class="button">Download</summary>
+              <div class="menu__panel" id="exports"></div>
+            </details>
+          </div>
+        </div>
+        <p class="calendar-guide" id="calendar-guide"></p>
         <div class="calendar-frame" id="calendar-frame" data-state="initial">
           <div class="calendar" id="calendar"></div>
           <div class="calendar-skeleton" aria-hidden="true"></div>

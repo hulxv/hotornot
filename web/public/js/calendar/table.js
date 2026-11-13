@@ -53,8 +53,8 @@ export function calendarTable(response, { view = "harmonized", title } = {}) {
       const rank = isNumber(m.rank) && isNumber(m.of_years) ? `${m.rank} of ${m.of_years}` : "—";
       cells = [show(m.value), show(m.median), comparison, rank];
     }
-    if (m.provisional) notes.push("Provisional");
-    if (m.partial_coverage) notes.push("Partial coverage");
+    if (m.provisional) notes.push("Early numbers");
+    if (m.partial_coverage) notes.push("Satellite passes missing");
     return { month: `${MONTH_LONG[m.month - 1]} ${m.year}`, cells: [...cells, notes.join("; ")] };
   });
 

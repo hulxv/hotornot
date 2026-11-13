@@ -1,25 +1,26 @@
 import { createCalendar } from "./calendar/index.js";
 import { buildOption } from "./calendar/option.js";
 import { calendarTable, calendarTableHtml } from "./calendar/table.js";
-import { buildCalendar } from "./calendar/transform.js";
+import { MONTH_LONG, buildCalendar } from "./calendar/transform.js";
 import { ApiError, RECORD_START_MONTH, calendarBody, getMetadata, lastRecordMonth, postCalendar, postCurrentMonth, resolveRange } from "./client-api.js";
 import { createMap } from "./map/map.js";
-import { renderArea, snapForMap } from "./panels/area.js";
-import { renderCurrentMonth } from "./panels/current-month.js";
+import { areaLabel, renderArea, snapForMap } from "./panels/area.js";
 import { h } from "./panels/dom.js";
 import { createExportsPanel } from "./panels/exports.js";
 import { errorMessage } from "./panels/messages.js";
-import { VIEWS, areaFromPolygon, areaPolygon, parseState, serializeState, seriesForView } from "./url-state.js";
+import { renderVerdict } from "./panels/verdict-card.js";
+import { EXAMPLES, VIEWS, areaFromPolygon, areaPolygon, parseState, serializeState, seriesForView } from "./url-state.js";
+import { verdict, verdictMonth } from "./verdict.js";
 
 /**
  * @typedef {import("../shared/contracts.js").Aoi} Aoi
  * @typedef {import("../shared/contracts.js").Metadata} Metadata
- * @typedef {import("../shared/contracts.js").RegionMeta} RegionMeta
  * @typedef {import("../shared/contracts.js").CalendarRequest} CalendarRequest
  * @typedef {import("../shared/contracts.js").CalendarResponse} CalendarResponse
- * @typedef {import("../shared/contracts.js").CurrentMonthResponse} CurrentMonthResponse
  * @typedef {import("./url-state.js").AppState} AppState
  * @typedef {import("./url-state.js").View} View
+ * @typedef {import("./verdict.js").MonthSummary} MonthSummary
+ * @typedef {{ year: number, month: number }} YearMonth
  */
 
 const CACHE_LIMIT = 24;
@@ -48,17 +49,46 @@ class PromiseCache {
   }
 }
 
+/** @param {string} ym YYYY-MM @returns {YearMonth} */
+const toYearMonth = (ym) => {
+  const [year, month] = ym.split("-").map(Number);
+  return { year, month };
+};
+
+/** @param {string} ym YYYY-MM */
+const monthName = (ym) => {
+  const { year, month } = toYearMonth(ym);
+  return `${MONTH_LONG[month - 1]} ${year}`;
+};
+
+const GUIDE = {
+  harmonized: "Each square is one month. Brighter means more fires.",
+  anomaly: "Each square is one month. Orange means more fires than normal, blue means fewer.",
+  raw: "Each square is one month, before harmonizing: MODIS above, VIIRS below. Brighter means more fires.",
+};
+
+/**
+ * The line above the calendar: how to read it, and which month is outlined.
+ * @param {View} view
+ * @param {string} focus the outlined month, YYYY-MM
+ * @param {string} latest the newest month with data, YYYY-MM
+ */
+export function calendarGuide(view, focus, latest) {
+  const outlined = focus === latest ? "this month" : monthName(focus);
+  return `${GUIDE[view]} ${view === "raw" ? `The outlined squares are ${outlined}.` : `The outlined square is ${outlined}.`}`;
+}
+
 /**
  * The calendar's height for a response covering `start` to `end`, so the space is reserved
  * before the data arrives.
- * @param {{ view: View, julyStart: boolean, width: number, start: string, end: string, title: string }} options
+ * @param {{ view: View, julyStart: boolean, width: number, start: string, end: string, title: string, highlight: YearMonth | null }} options
  */
-export function estimateCalendarHeight({ view, julyStart, width, start, end, title }) {
+export function estimateCalendarHeight({ view, julyStart, width, start, end, title, highlight }) {
   const months = [];
   const first = start < RECORD_START_MONTH ? RECORD_START_MONTH : start;
-  let [year, month] = first.split("-").map(Number);
-  const [lastYear, lastMonth] = end.split("-").map(Number);
-  while (year < lastYear || (year === lastYear && month <= lastMonth)) {
+  let { year, month } = toYearMonth(first);
+  const last = toYearMonth(end);
+  while (year < last.year || (year === last.year && month <= last.month)) {
     months.push({
       year,
       month,
@@ -86,14 +116,12 @@ export function estimateCalendarHeight({ view, julyStart, width, start, end, tit
     fire_season: [1],
     months,
   });
-  return buildOption(buildCalendar(response, { view, julyStart }), { width, title }).height;
+  return buildOption(buildCalendar(response, { view, julyStart, highlight }), { width, title }).height;
 }
 
 /** A map stand-in when MapLibre or terra-draw could not load: the calendar still works. */
 const NO_MAP = {
   setSnapped: async () => {},
-  fitRegion: () => {},
-  clear: () => {},
   setAoi: async () => {},
 };
 
@@ -108,10 +136,10 @@ const pageLoaded = (doc) =>
     : new Promise((resolve) => doc.defaultView?.addEventListener("load", resolve, { once: true }));
 
 /**
- * Starts the page: reads the URL, loads metadata, builds the map, calendar and side panel, and
- * keeps them and the URL in step. index.html runs this module before its defer scripts, so the
- * metadata, calendar and current-month requests for the URL's state go out while the vendored
- * libraries are still downloading; the page is built once they have run.
+ * Starts the page: reads the URL, loads metadata, builds the region buttons, verdict, map and
+ * calendar, and keeps them and the URL in step. index.html runs this module before its defer
+ * scripts, so the first requests for the URL's state go out while the vendored libraries are
+ * still downloading; the page is built once they have run.
  * @param {Document} [doc]
  */
 export async function startApp(doc = document) {
@@ -119,7 +147,7 @@ export async function startApp(doc = document) {
   let state = parseState(location.search);
   /** @type {PromiseCache<{ body: CalendarResponse, mock: boolean }>} */
   const calendars = new PromiseCache();
-  /** @type {PromiseCache<{ body: CurrentMonthResponse, mock: boolean }>} */
+  /** @type {PromiseCache<{ body: MonthSummary, mock: boolean }>} */
   const currentMonths = new PromiseCache();
   const metadataLoad = getMetadata();
   metadataLoad.then(({ body }) => prefetch(body), () => {});
@@ -128,15 +156,21 @@ export async function startApp(doc = document) {
   const $ = (id) => /** @type {HTMLElement} */ (doc.getElementById(id));
   const ui = {
     presets: $("region-presets"),
+    drawArea: /** @type {HTMLButtonElement} */ ($("draw-area")),
+    typeCoordinates: /** @type {HTMLButtonElement} */ ($("type-coordinates")),
+    area: { summary: $("area-summary"), warning: $("clip-warning"), message: $("area-message") },
+    verdict: { card: $("verdict-card"), where: $("verdict-where"), body: $("verdict") },
+    examples: $("examples"),
+    notice: $("notice"),
+    map: $("map"),
     viewToggle: $("view-toggle"),
+    menus: [/** @type {HTMLDetailsElement} */ ($("more-options")), /** @type {HTMLDetailsElement} */ ($("downloads"))],
     from: /** @type {HTMLSelectElement} */ ($("range-from")),
     to: /** @type {HTMLSelectElement} */ ($("range-to")),
     july: /** @type {HTMLInputElement} */ ($("july-start")),
-    notice: $("notice"),
-    map: $("map"),
-    area: { summary: $("area-summary"), warning: $("clip-warning"), message: $("area-message") },
-    currentMonth: $("current-month"),
+    raw: /** @type {HTMLInputElement} */ ($("raw-view")),
     exports: $("exports"),
+    guide: $("calendar-guide"),
     frame: $("calendar-frame"),
     calendar: $("calendar"),
     calendarSection: $("calendar-section"),
@@ -153,25 +187,28 @@ export async function startApp(doc = document) {
   /** @type {{ request: CalendarRequest, response: CalendarResponse } | null} */
   let shown = null;
   let loadId = 0;
-  /** JSON of the polygon the map overlay and area panel describe, and of the one the card shows. */
+  /** JSON of the polygon the map overlay and area panel describe, and of the polygon and month the verdict shows. */
   let areaKey = null;
-  let monthKey = null;
+  let verdictKey = null;
+  /** False while the area lies outside every region, so the verdict does not name one. */
+  let inRegion = true;
 
   renderArea(ui.area, { status: "loading" });
-  renderCurrentMonth(ui.currentMonth, { status: "loading" });
+  renderVerdict(ui.verdict, { status: "loading", area: "" });
 
   try {
     const result = await metadataLoad;
     metadata = result.body;
     noteMock(result.mock);
   } catch (error) {
-    const message = errorMessage(error instanceof ApiError ? error : new ApiError("server_error", String(error)), []);
+    const message = errorMessage(asApiError(error), []);
     renderArea(ui.area, { status: "error", message });
-    renderCurrentMonth(ui.currentMonth, { status: "empty", text: "No data to show." });
+    renderVerdict(ui.verdict, { status: "empty", area: "", text: "No data to show." });
     setCalendarState("empty", `${message.title} Reload the page to try again.`);
     return;
   }
 
+  const latest = lastRecordMonth(metadata);
   const regionById = new Map(metadata.regions.map((region) => [region.id, region]));
   const regionName = (id) => regionById.get(id)?.name ?? id;
   const describeError = (error) => errorMessage(error, metadata.regions);
@@ -183,6 +220,7 @@ export async function startApp(doc = document) {
     `calibration ${method.calibration_years} · baseline ${method.baseline} · NOAA-20 from ${method.viirs_switch}`;
 
   buildPresets();
+  buildExamples();
   buildRangeSelects();
   syncControls();
 
@@ -190,9 +228,10 @@ export async function startApp(doc = document) {
   try {
     map = createMap(ui.map, {
       regions: metadata.regions,
-      onAoiChange: (polygon, { source }) => (polygon ? changeArea(areaFromPolygon(polygon)) : clearArea(source)),
-      onRegionSelect: (id) => selectPreset(id, { fit: false }),
+      onAoiChange: (polygon) => polygon && changeArea(areaFromPolygon(polygon)),
     });
+    ui.drawArea.disabled = false;
+    ui.typeCoordinates.disabled = false;
   } catch (error) {
     console.error(error);
     ui.map.replaceChildren(h("p", { class: "banner banner--error", text: "The map could not load. The region buttons above still work." }));
@@ -213,15 +252,18 @@ export async function startApp(doc = document) {
       shown && { request: shown.request, response: shown.response, metadata, view: state.view, toPng: () => calendarPng() },
   });
 
-  ui.viewToggle.addEventListener("change", (event) => {
-    const view = /** @type {View} */ (/** @type {HTMLInputElement} */ (event.target).value);
-    if (!VIEWS.includes(view)) return;
-    const series = seriesForView(view);
-    const refetch = series !== state.series;
-    setState({ view, series });
-    if (refetch) load();
-    else drawCalendar();
+  ui.drawArea.addEventListener("click", (event) => {
+    ui.map.scrollIntoView?.({ block: "nearest" });
+    // A click from Enter or Space, or from a screen reader, has detail 0; drawing needs a pointer.
+    if (/** @type {MouseEvent} */ (event).detail === 0) map.openBoxForm();
+    else map.startDrawing();
   });
+  ui.typeCoordinates.addEventListener("click", () => {
+    ui.map.scrollIntoView?.({ block: "nearest" });
+    map.openBoxForm("");
+  });
+  ui.viewToggle.addEventListener("change", (event) => changeView(/** @type {View} */ (/** @type {HTMLInputElement} */ (event.target).value)));
+  ui.raw.addEventListener("change", () => changeView(ui.raw.checked ? "raw" : "harmonized"));
   ui.july.addEventListener("change", () => {
     setState({ julyStart: ui.july.checked });
     drawCalendar();
@@ -229,21 +271,57 @@ export async function startApp(doc = document) {
   ui.from.addEventListener("change", () => changeRange("from"));
   ui.to.addEventListener("change", () => changeRange("to"));
   ui.numbers.addEventListener("toggle", () => fillTable());
+  for (const menu of ui.menus) {
+    menu.addEventListener("keydown", (event) => {
+      if (/** @type {KeyboardEvent} */ (event).key !== "Escape" || !menu.open) return;
+      menu.open = false;
+      /** @type {HTMLElement} */ (menu.querySelector("summary")).focus();
+    });
+  }
+  doc.documentElement.addEventListener("click", (event) => {
+    for (const menu of ui.menus) if (menu.open && !menu.contains(/** @type {Node} */ (event.target))) menu.open = false;
+  });
 
   setState({});
-  showArea({ fit: true });
+  showArea();
+
+  /** The month the verdict is about and the calendar outlines, YYYY-MM. */
+  function focusMonth() {
+    return verdictMonth(state.end, latest);
+  }
+
+  /** @param {CalendarRequest} request */
+  function fetchCalendar(request) {
+    return calendars.get(JSON.stringify(request), () => postCalendar(request));
+  }
 
   /**
-   * Asks for the calendar and current month of the URL's area into the caches, with the exact
-   * requests load() makes, so load() finds them already on their way.
+   * The month the verdict describes: this month from `/api/current-month` (the same days in
+   * other years), an earlier one from the harmonized calendar.
+   * @param {Aoi} polygon
+   * @param {string} focus YYYY-MM
+   * @param {Metadata} meta
+   * @returns {Promise<{ body: MonthSummary, mock: boolean }>}
+   */
+  async function fetchVerdictMonth(polygon, focus, meta) {
+    if (focus === lastRecordMonth(meta)) return currentMonths.get(JSON.stringify(polygon), () => postCurrentMonth(polygon));
+    const { body, mock: isMock } = await fetchCalendar(calendarBody(polygon, { ...state, view: "harmonized", series: "harmonized" }, meta));
+    const { year, month } = toYearMonth(focus);
+    const found = body.months.find((m) => m.year === year && m.month === month);
+    const empty = { year, month, value: null, median: null, rank: null, of_years: null, provisional: false, partial_coverage: false };
+    return { body: found ?? empty, mock: isMock };
+  }
+
+  /**
+   * Asks for the URL area's calendar and verdict month into the caches, with the exact requests
+   * load() makes, so load() finds them already on their way.
    * @param {Metadata} meta
    */
   function prefetch(meta) {
     const polygon = areaPolygon(state.area, meta.regions.find((region) => region.id === state.region));
     if (!polygon) return;
-    const request = calendarBody(polygon, state, meta);
-    calendars.get(JSON.stringify(request), () => postCalendar(request)).catch(() => {});
-    currentMonths.get(JSON.stringify(polygon), () => postCurrentMonth(polygon)).catch(() => {});
+    fetchCalendar(calendarBody(polygon, state, meta)).catch(() => {});
+    fetchVerdictMonth(polygon, verdictMonth(state.end, lastRecordMonth(meta)), meta).catch(() => {});
   }
 
   /** Applies a change, reflects it in the controls and rewrites the URL in its canonical form. */
@@ -259,19 +337,38 @@ export async function startApp(doc = document) {
       ...metadata.regions.map((region) =>
         h("button", {
           type: "button",
-          class: "button preset",
+          class: "button region",
           "data-region": region.id,
           "aria-pressed": "false",
           text: region.name,
-          onclick: () => selectPreset(region.id, { fit: true }),
+          onclick: () => selectPreset(region.id),
         }),
       ),
     );
   }
 
+  function buildExamples() {
+    ui.examples.replaceChildren(
+      ...EXAMPLES.flatMap((example, i) => [
+        ...(i > 0 ? [" · "] : []),
+        h("a", {
+          href: `${location.pathname}${serializeState(example.state)}`,
+          text: example.label,
+          onclick: (event) => {
+            const click = /** @type {MouseEvent} */ (event);
+            if (click.button > 0 || click.metaKey || click.ctrlKey || click.shiftKey || click.altKey) return;
+            click.preventDefault();
+            setState({ ...example.state });
+            showArea();
+          },
+        }),
+      ]),
+    );
+  }
+
   function buildRangeSelects() {
     const firstYear = Number(RECORD_START_MONTH.slice(0, 4));
-    const lastYear = Number(lastRecordMonth(metadata).slice(0, 4));
+    const lastYear = Number(latest.slice(0, 4));
     for (const select of [ui.from, ui.to]) {
       select.replaceChildren();
       for (let year = firstYear; year <= lastYear; year += 1) select.append(h("option", { value: String(year), text: String(year) }));
@@ -287,18 +384,30 @@ export async function startApp(doc = document) {
     for (const input of ui.viewToggle.querySelectorAll("input[name=view]")) {
       /** @type {HTMLInputElement} */ (input).checked = /** @type {HTMLInputElement} */ (input).value === state.view;
     }
+    ui.raw.checked = state.view === "raw";
     ui.july.checked = state.julyStart;
     if (metadata) {
       const { start, end } = resolveRange(state, metadata);
       ui.from.value = String(Math.max(Number(start.slice(0, 4)), Number(RECORD_START_MONTH.slice(0, 4))));
       ui.to.value = end.slice(0, 4);
+      ui.guide.textContent = calendarGuide(state.view, focusMonth(), latest);
     }
+  }
+
+  /** @param {View} view */
+  function changeView(view) {
+    if (!VIEWS.includes(view)) return;
+    const series = seriesForView(view);
+    const refetch = series !== state.series;
+    setState({ view, series });
+    if (refetch) load();
+    else drawCalendar();
   }
 
   /** @param {"from" | "to"} changed */
   function changeRange(changed) {
     const firstYear = Number(RECORD_START_MONTH.slice(0, 4));
-    const lastYear = Number(lastRecordMonth(metadata).slice(0, 4));
+    const lastYear = Number(latest.slice(0, 4));
     let from = Number(ui.from.value);
     let to = Number(ui.to.value);
     if (from > to) {
@@ -309,15 +418,11 @@ export async function startApp(doc = document) {
     load();
   }
 
-  /**
-   * @param {string} id
-   * @param {{ fit: boolean }} options
-   */
-  function selectPreset(id, { fit }) {
+  /** @param {string} id */
+  function selectPreset(id) {
     if (!regionById.has(id)) return;
     setState({ region: /** @type {AppState["region"]} */ (id), area: { kind: "preset" } });
-    showArea({ fit: false });
-    if (fit) map.fitRegion(/** @type {AppState["region"]} */ (id));
+    showArea();
   }
 
   /** @param {AppState["area"]} area */
@@ -326,25 +431,11 @@ export async function startApp(doc = document) {
     load();
   }
 
-  /** @param {string} source */
-  function clearArea(source) {
-    if (source !== "clear") return;
-    loadId += 1;
-    shown = null;
-    areaKey = null;
-    monthKey = null;
-    exportsPanel.setReady(false);
-    renderArea(ui.area, { status: "empty", text: "No area. Pick a region above, draw an area on the map, or type a box." });
-    renderCurrentMonth(ui.currentMonth, { status: "empty", text: "Pick an area to compare this month with its history." });
-    setCalendarState("empty", "Pick a region or draw an area to see its calendar.");
-    fillTable();
-  }
-
-  /** Puts the state's area on the map (for a preset or a URL), then loads it. */
-  function showArea({ fit }) {
+  /** Puts the state's area on the map (for a preset, an example or the URL), then loads it. */
+  function showArea() {
     const polygon = currentPolygon();
     if (polygon) {
-      map.setAoi(polygon, { fit }).catch((error) => console.warn("the map could not show the area:", error));
+      map.setAoi(polygon, { fit: true }).catch((error) => console.warn("the map could not show the area:", error));
     }
     // setAoi clears the cell overlay, so load() has to draw it again even for the same area.
     areaKey = null;
@@ -353,6 +444,14 @@ export async function startApp(doc = document) {
 
   function currentPolygon() {
     return areaPolygon(state.area, regionById.get(state.region));
+  }
+
+  function currentHighlight() {
+    return toYearMonth(focusMonth());
+  }
+
+  function currentAreaLabel() {
+    return inRegion ? areaLabel(regionName(state.region), state.area.kind === "preset") : "Your area";
   }
 
   function reserveCalendarHeight() {
@@ -365,6 +464,7 @@ export async function startApp(doc = document) {
       start,
       end,
       title: regionName(state.region),
+      highlight: currentHighlight(),
     });
     ui.calendar.style.height = `${height}px`;
   }
@@ -385,7 +485,7 @@ export async function startApp(doc = document) {
 
   function drawCalendar() {
     if (!shown) return;
-    doc.title = `HotOrNot · ${regionName(shown.response.region_id)}`;
+    doc.title = `Hot or Not · ${regionName(shown.response.region_id)}`;
     fillTable();
     if (!calendar) {
       setCalendarState(
@@ -394,7 +494,12 @@ export async function startApp(doc = document) {
       );
       return;
     }
-    calendar.render(shown.response, { view: state.view, julyStart: state.julyStart, title: regionName(shown.response.region_id) });
+    calendar.render(shown.response, {
+      view: state.view,
+      julyStart: state.julyStart,
+      title: regionName(shown.response.region_id),
+      highlight: currentHighlight(),
+    });
   }
 
   /** The calendar as a table, the keyboard and screen-reader route to what its tooltips say. Built only while open. */
@@ -413,11 +518,11 @@ export async function startApp(doc = document) {
   }
 
   /**
-   * Fetches the calendar for the state and draws it, then fetches the current month unless the
-   * card already shows this area. Results of a load that a newer one replaced are dropped; the
-   * requests still finish and fill the caches.
+   * Fetches the calendar for the state and draws it, and the verdict's month unless the card
+   * already shows it. Results of a load that a newer one replaced are dropped; the requests
+   * still finish and fill the caches.
    */
-  async function load() {
+  function load() {
     const polygon = currentPolygon();
     if (!polygon) return;
     const id = ++loadId;
@@ -425,27 +530,31 @@ export async function startApp(doc = document) {
 
     if (key !== areaKey) {
       areaKey = key;
-      monthKey = null;
+      verdictKey = null;
       const overlay = snapForMap(polygon, metadata.regions);
+      inRegion = state.area.kind === "preset" || overlay.regionId !== null;
       map.setSnapped(overlay.counted, overlay.uncovered).catch((error) => console.warn("the map could not draw the cells:", error));
       if (overlay.regionId && overlay.regionId !== state.region) setState({ region: /** @type {AppState["region"]} */ (overlay.regionId) });
       renderArea(ui.area, { status: "loading" });
-      renderCurrentMonth(ui.currentMonth, { status: "loading" });
     }
     setCalendarState("loading", "Loading the calendar…");
     reserveCalendarHeight();
     exportsPanel.setReady(false);
+    loadCalendar(id, polygon);
+    loadVerdict(id, polygon, key);
+  }
 
+  /** @param {number} id @param {Aoi} polygon */
+  async function loadCalendar(id, polygon) {
     const request = calendarBody(polygon, state, metadata);
     let result;
     try {
-      result = await calendars.get(JSON.stringify(request), () => postCalendar(request));
+      result = await fetchCalendar(request);
     } catch (error) {
       if (id === loadId) showError(error);
       return;
     }
     if (id !== loadId) return;
-
     shown = { request, response: result.body };
     noteMock(result.mock);
     const response = result.body;
@@ -459,34 +568,42 @@ export async function startApp(doc = document) {
       regionName: regionName(response.region_id),
       preset: state.area.kind === "preset",
     });
+  }
 
-    if (monthKey === key) return;
-    renderCurrentMonth(ui.currentMonth, { status: "loading" });
+  /** @param {number} id @param {Aoi} polygon @param {string} key */
+  async function loadVerdict(id, polygon, key) {
+    const focus = focusMonth();
+    const wanted = JSON.stringify([key, focus]);
+    if (verdictKey === wanted) return;
+    verdictKey = null;
+    renderVerdict(ui.verdict, { status: "loading", area: currentAreaLabel() });
     try {
-      const current = await currentMonths.get(key, () => postCurrentMonth(polygon));
+      const result = await fetchVerdictMonth(polygon, focus, metadata);
       if (id !== loadId) return;
-      monthKey = key;
-      noteMock(current.mock);
-      renderCurrentMonth(ui.currentMonth, { status: "ready", data: current.body });
+      verdictKey = wanted;
+      noteMock(result.mock);
+      renderVerdict(ui.verdict, {
+        status: "ready",
+        area: currentAreaLabel(),
+        verdict: verdict(result.body),
+        onLatest: focus === latest ? undefined : backToToday,
+      });
     } catch (error) {
-      if (id === loadId) renderCurrentMonth(ui.currentMonth, { status: "error", message: describeError(asApiError(error)) });
+      if (id === loadId) renderVerdict(ui.verdict, { status: "empty", area: currentAreaLabel(), text: describeError(asApiError(error)).title });
     }
   }
 
-  /** @param {unknown} error */
-  function asApiError(error) {
-    return error instanceof ApiError ? error : new ApiError("server_error", String(error));
+  function backToToday() {
+    setState({ start: null, end: null });
+    load();
   }
 
   /** @param {unknown} error */
   function showError(error) {
-    const apiError = asApiError(error);
-    const message = describeError(apiError);
+    const message = describeError(asApiError(error));
     shown = null;
-    monthKey = null;
     exportsPanel.setReady(false);
-    renderArea(ui.area, { status: "error", message, onRegion: (id) => selectPreset(id, { fit: true }) });
-    renderCurrentMonth(ui.currentMonth, { status: "empty", text: "No comparison for this area." });
+    renderArea(ui.area, { status: "error", message, onRegion: (id) => selectPreset(id) });
     setCalendarState("empty", `${message.title} No calendar to show.`);
     fillTable();
   }
@@ -497,4 +614,9 @@ export async function startApp(doc = document) {
     ui.notice.hidden = !mock;
     ui.notice.textContent = mock ? "This page is showing mock data for development, not satellite observations." : "";
   }
+}
+
+/** @param {unknown} error */
+function asApiError(error) {
+  return error instanceof ApiError ? error : new ApiError("server_error", String(error));
 }

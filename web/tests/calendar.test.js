@@ -222,7 +222,7 @@ describe("NULL handling", () => {
     const lines = tooltipLines(ranked, model, panel.id);
     assert.equal(lines[0], `${MONTH_LONG[ranked.month - 1]} ${ranked.year}`);
     assert.ok(lines.includes(`Rank ${ranked.source.rank} of ${ranked.source.of_years}`));
-    assert.ok(lines.some((line) => line.startsWith("Value: ") && line.endsWith("MODIS-equivalent hotspots")));
+    assert.ok(lines.some((line) => line.startsWith("Value: ") && line.endsWith("fire detections")));
     assert.ok(lines.some((line) => line.startsWith("Median 2003–2025: ")));
     assert.ok(lines.some((line) => line.startsWith("Difference: ")));
     assert.ok(lines.some((line) => line.startsWith("Anomaly: ") && line.includes("× the median")));
@@ -479,7 +479,7 @@ function loadEcharts() {
 
 describe("ECharts render (server-side SVG)", () => {
   const echarts = loadEcharts();
-  const LEGEND = ["No data", "Provisional (near-real-time)", "Partial coverage"];
+  const LEGEND = ["No data", "Early numbers, may change", "Satellite passes missing"];
 
   for (const [name, mock] of MOCKS) {
     for (const view of VIEWS) {

@@ -33,6 +33,20 @@ export const DEFAULT_STATE = Object.freeze({
   julyStart: false,
 });
 
+/**
+ * The "Try" links under the verdict. Each ends its range on the month to look at, because the
+ * verdict and the outlined calendar square follow the range's last month.
+ * @type {readonly { label: string, state: Readonly<AppState> }[]}
+ */
+export const EXAMPLES = Object.freeze([
+  {
+    label: "Australia's Black Summer (2019–20)",
+    state: Object.freeze({ ...DEFAULT_STATE, region: "se_australia", view: "anomaly", end: "2019-12", julyStart: true }),
+  },
+  { label: "California 2020", state: Object.freeze({ ...DEFAULT_STATE, region: "california", end: "2020-09" }) },
+  { label: "Nile Delta today", state: DEFAULT_STATE },
+]);
+
 // Coordinates go into the URL as integers of 1e-6 degree, the precision the map rounds to.
 const SCALE = 1e6;
 const BASE64URL = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_";

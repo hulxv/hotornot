@@ -231,17 +231,17 @@ describe("the calendar as a table", () => {
     const table = calendarTable(harmonized, { view: "harmonized", title: "Nile Delta, Egypt" });
     assert.deepEqual(table.columns.map((c) => c.label), [
       "Month",
-      "Value (MODIS-equivalent hotspots)",
+      "Value (fire detections)",
       "Median 2003–2025",
       "Difference",
       "Rank",
       "Notes",
     ]);
     assert.equal(table.rows.length, 313);
-    assert.deepEqual(table.rows[0], { month: "November 2026", cells: ["66.3", "95.7", "−29.4", "19 of 24", "Provisional; Partial coverage"] });
+    assert.deepEqual(table.rows[0], { month: "November 2026", cells: ["66.3", "95.7", "−29.4", "19 of 24", "Early numbers; Satellite passes missing"] });
     assert.equal(table.rows.at(-1).month, "November 2000");
     assert.equal(table.rows.at(-1).cells[3], "—", "no rank before 2003");
-    assert.match(table.caption, /^Nile Delta, Egypt: harmonized MODIS-equivalent hotspots per month, newest first\./);
+    assert.match(table.caption, /^Nile Delta, Egypt: harmonized fire detections per month, newest first\./);
     assert.match(table.caption, /Fire season: Oct–Nov\.$/);
   });
 
@@ -253,7 +253,7 @@ describe("the calendar as a table", () => {
     assert.equal(anomaly.rows.filter((row) => row.cells.at(-1).includes("Not enough history")).length, noHistory);
     const rawTable = calendarTable(raw, { view: "raw" });
     assert.deepEqual(rawTable.columns.map((c) => c.label), ["Month", "MODIS hotspots", "VIIRS hotspots", "Notes"]);
-    assert.deepEqual(rawTable.rows[0].cells, ["31", "460", "Provisional; Partial coverage"]);
+    assert.deepEqual(rawTable.rows[0].cells, ["31", "460", "Early numbers; Satellite passes missing"]);
     assert.doesNotMatch(rawTable.caption, /Rank|Fire season/);
     assert.throws(() => calendarTable(harmonized, { view: "pie" }), RangeError);
   });
@@ -416,21 +416,33 @@ describe("the served pages", () => {
     });
   }
 
-  it("renders the app's keyboard path: presets, views, years, box form, calendar table, downloads", async () => {
+  it("renders the app's keyboard path: regions, own area, verdict, views, options, box form, calendar table, downloads", async () => {
     const doc = reports["/"]?.doc ?? (await auditPage(base, "/")).doc;
-    const presets = doc.querySelectorAll("#region-presets button");
-    assert.equal(presets.length, 4);
-    assert.ok(presets.every((button) => button.hasAttribute("aria-pressed")));
-    assert.equal(doc.querySelectorAll("#view-toggle input[type=radio]").length, 3);
+    const regions = doc.querySelectorAll("#region-presets button");
+    assert.deepEqual(regions.map((button) => button.textContent), mocks.metadata.regions.map((region) => region.name));
+    assert.deepEqual(regions.map((button) => button.getAttribute("aria-pressed")), ["true", "false", "false", "false"]);
+    for (const id of ["draw-area", "type-coordinates"]) assert.equal(doc.getElementById(id).disabled, false, id);
+    assert.match(doc.getElementById("verdict-heading").textContent.replace(/\s+/g, " ").trim(), /^Hot or not\? Nile Delta, Egypt · November 2026 so far$/);
+    assert.match(doc.getElementById("verdict").textContent, /^Verdict: (HOT|NOT|NORMAL)[\d.,]+ fire detections?, /);
+    assert.deepEqual(doc.querySelectorAll("#examples a").map((link) => link.getAttribute("href")), [
+      "/?region=se_australia&view=anomaly&to=2019-12&july=1",
+      "/?region=california&to=2020-09",
+      "/",
+    ]);
+    assert.deepEqual(doc.querySelectorAll("#view-toggle input[type=radio]").map((input) => input.closest("label").textContent), ["Fire count", "Compared with normal"]);
+    assert.equal(doc.querySelectorAll("#more-options select").length, 2);
     assert.equal(doc.querySelectorAll("#range-from option").length, 27);
+    assert.deepEqual(doc.querySelectorAll("#more-options input[type=checkbox]").map((input) => input.id), ["july-start", "raw-view"]);
     assert.equal(doc.querySelectorAll(".hon-map__box input").length, 4);
-    assert.deepEqual(doc.querySelectorAll("#exports button").map((b) => b.textContent), ["Hotspots (CSV)", "Monthly summary (CSV)", "Calendar image (PNG)"]);
+    assert.equal(doc.querySelector("#downloads summary").textContent, "Download");
+    assert.deepEqual(doc.querySelectorAll("#exports button").map((b) => b.textContent), ["Fire detections (CSV)", "Monthly summary (CSV)", "Calendar picture (PNG)"]);
     assert.ok(doc.querySelectorAll("#exports button").every((b) => !b.disabled), "downloads are enabled once the calendar is shown");
+    assert.equal(doc.getElementById("calendar-guide").textContent, "Each square is one month. Brighter means more fires. The outlined square is this month.");
     assert.match(doc.getElementById("calendar").getAttribute("aria-label"), /^Calendar heatmap/);
     const rows = doc.querySelectorAll("#calendar-table tbody tr");
     assert.equal(rows.length, 313);
     assert.equal(rows[0].querySelector("th").textContent, "November 2026");
-    assert.match(doc.getElementById("current-month").textContent, /^November 2026 so far:/);
+    assert.equal(doc.querySelector("#map-heading").textContent, "Map");
   });
 
   it("names every numbers table on the method page after its chart", async () => {

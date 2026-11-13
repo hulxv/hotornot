@@ -4,6 +4,7 @@ import { boxToPolygon } from "../public/shared/aoi.js";
 import { calendarBody, resolveRange } from "../public/js/client-api.js";
 import {
   DEFAULT_STATE,
+  EXAMPLES,
   areaFromPolygon,
   areaPolygon,
   decodePolygon,
@@ -67,6 +68,18 @@ describe("URL state round trip", () => {
     assert.equal(parseState("?view=raw").series, "raw");
     assert.equal(parseState("?view=anomaly&series=raw").series, "harmonized");
     assert.equal(parseState("?view=raw&series=harmonized").series, "harmonized");
+  });
+
+  it("writes the Try links as short URLs that reopen their state", () => {
+    assert.deepEqual(
+      EXAMPLES.map(({ label, state }) => [label, serializeState(state)]),
+      [
+        ["Australia's Black Summer (2019–20)", "?region=se_australia&view=anomaly&to=2019-12&july=1"],
+        ["California 2020", "?region=california&to=2020-09"],
+        ["Nile Delta today", ""],
+      ],
+    );
+    for (const { state } of EXAMPLES) assert.deepEqual(roundTrip(state), state);
   });
 
   it("prefers a polygon over a box when a URL has both", () => {
