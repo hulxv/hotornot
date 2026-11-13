@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Calendar heatmap (dev)</title>
+    <link rel="stylesheet" href="/css/base.css">
+    <style>
+      main {
+        max-width: 64rem;
+        padding-top: 2rem;
+      }
+      figure {
+        margin: 2.5rem 0;
+      }
+      figcaption {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1rem;
+        align-items: baseline;
+        margin-bottom: 0.5rem;
+      }
+      .chart {
+        width: 100%;
+        min-height: 120px;
+      }
+      .error {
+        color: #b3261e;
+      }
+    </style>
+    <script src="/vendor/echarts.min.js"></script>
+  </head>
+  <body>
+    <main>
+      <h1>Calendar heatmap</h1>
+      <p class="muted">
+        Every W01 calendar mock in every view. The fixtures come from the mock <code>/api/calendar</code>, so start
+        the server first: <code>PORT=3027 node server.js</code> in <code>web/</code>.
+      </p>
+      <p><label><input type="checkbox" id="july-start"> Start the year in July</label></p>
+      <div id="charts"></div>
+    </main>
+    <script type="module">
+      import { VIEWS, createCalendar } from "/js/calendar/index.js";
+
+      const NILE_DELTA = { type: "Polygon", coordinates: [[[30.8, 30.6], [31.4, 30.6], [31.4, 31.1], [30.8, 31.1], [30.8, 30.6]]] };
+      const SE_AUSTRALIA = { type: "Polygon", coordinates: [[[148, -37.8], [149.5, -37.8], [149.5, -36.5], [148, -36.5], [148, -37.8]]] };
+      const MOCKS = [
+        { name: "calendar-nile_delta-harmonized", aoi: NILE_DELTA, series: "harmonized" },
+        { name: "calendar-nile_delta-raw", aoi: NILE_DELTA, series: "raw" },
+        { name: "calendar-se_australia-harmonized", aoi: SE_AUSTRALIA, series: "harmonized" },
+      ];
+
+      const julyStart = document.getElementById("july-start");
+      const host = document.getElementById("charts");
+      const charts = [];
+
+      async function fetchCalendar({ aoi, series }) {
+        const response = await fetch("/api/calendar", {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ aoi, start: "2000-01", end: "2026-12", series }),
+        });
+        if (!response.ok) throw new Error(`/api/calendar answered ${response.status}: ${await response.text()}`);
+        return response.json();
+      }
+
+      function draw() {
+        for (const { calendar, response, view, status } of charts) {
+          try {
+            calendar.render(response, { view, julyStart: julyStart.checked });
+            status.textContent = "";
+          } catch (error) {
+            status.textContent = `render failed: ${error.message}`;
+            console.error(error);
+          }
+        }
+      }
+
+      for (const mock of MOCKS) {
+        let response;
+        try {
+          response = await fetchCalendar(mock);
+        } catch (error) {
+          host.insertAdjacentHTML("beforeend", `<p class="error"></p>`);
+          host.lastElementChild.textContent = `${mock.name}: ${error.message}`;
+          continue;
+        }
+        for (const view of VIEWS) {
+          const figure = document.createElement("figure");
+          const caption = document.createElement("figcaption");
+          const title = document.createElement("strong");
+          title.textContent = `${mock.name}.json · ${view} view`;
+          const png = document.createElement("button");
+          png.type = "button";
+          png.textContent = "Download PNG";
+          const status = document.createElement("span");
+          status.className = "error";
+          caption.append(title, png, status);
+          const container = document.createElement("div");
+          container.className = "chart";
+          figure.append(caption, container);
+          host.append(figure);
+
+          const calendar = createCalendar(container);
+          png.addEventListener("click", () => {
+            const link = document.createElement("a");
+            link.href = calendar.toPng();
+            link.download = `${mock.name}-${view}${julyStart.checked ? "-july" : ""}.png`;
+            link.click();
+          });
+          charts.push({ calendar, response, view, status });
+        }
+      }
+      draw();
+      julyStart.addEventListener("change", draw);
+    </script>
+  </body>
+</html>
