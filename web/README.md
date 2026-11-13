@@ -15,6 +15,7 @@ npm run vendor            # re-download public/vendor/ and rewrite its manifest
   Used by the browser and the server.
 - `api/`: one file per route, exporting `GET` or `POST(request)` that returns a `Response`.
   They read published data through `lib/data/` and fall back to `mocks/` when none is published.
+  `GET /api/method` serves the validation artifacts for `public/method.html`.
 - `public/vendor/`: MapLibre GL (global `maplibregl`), terra-draw (`terraDraw`,
   `terraDrawMaplibreGlAdapter`) and ECharts (`echarts`), pinned in `manifest.json`.
 - `DATA_BASE_URL`: where published data lives, an `https://` URL or a local directory
