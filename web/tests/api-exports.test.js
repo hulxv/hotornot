@@ -4,14 +4,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { after, before, describe, it } from "node:test";
+import { POST as postCalendar } from "../api/calendar.js";
 import { POST as postCurrentMonth } from "../api/current-month.js";
 import { POST as postHotspots } from "../api/export/hotspots.js";
 import { POST as postSummary } from "../api/export/summary.js";
 import { openServing } from "../lib/data/serving.js";
 import { DataSource, resetDataSource } from "../lib/data/source.js";
-import { csvStream, handleHotspotExport, handleSummaryExport } from "../lib/server/exports.js";
+import { csvStream, handleCurrentMonth, handleHotspotExport, handleSummaryExport } from "../lib/server/exports.js";
 import { boxToPolygon, snap } from "../public/shared/aoi.js";
-import { buildMonths } from "../public/shared/analytics.js";
 import {
   HOTSPOT_EXPORT_COLUMNS,
   REGION_IDS,
@@ -119,23 +119,26 @@ before(async () => {
 });
 
 /** What every number must equal, straight from the published tables and tiles. */
-function expected(aoi, start, end, regionCells = serving.getRegionCells(NILE), months = serving.getMonths(NILE)) {
+function expected(aoi, start, end, regionCells = serving.getRegionCells(NILE)) {
   const { coveredCells } = snap(aoi, regionCells, serving.getRegion(NILE).bbox);
   const covered = new Set(coveredCells);
   const rows = allRows.filter(
     (row) => covered.has(row.cell_id) && row.acq_date.slice(0, 7) >= start && row.acq_date.slice(0, 7) <= end,
   );
-  const ymRange = [yearMonthToYm(start), yearMonthToYm(end)];
-  const sums = serving.sumCells(NILE, coveredCells, ...ymRange);
-  const calendar = buildMonths(serving.sumCells(NILE, coveredCells), months, "harmonized", { start, end });
+  const sums = serving.sumCells(NILE, coveredCells, yearMonthToYm(start), yearMonthToYm(end));
   return {
     covered,
     rows,
     points: sum(sums.map((m) => m.points)),
     harmonized: sum(sums.map((m) => m.harmonized)),
-    calendarTotal: sum(calendar.map((m) => m.value ?? 0)),
-    months: calendar.length,
   };
+}
+
+/** The `months` of `POST /api/calendar` for the same body. */
+async function calendarMonthsFor(aoi, start, end, series = "harmonized") {
+  const response = await postCalendar(post(exportBody(aoi, start, end, series)));
+  assert.equal(response.status, 200);
+  return (await response.json()).months;
 }
 
 describe("POST /api/export/hotspots", () => {
@@ -167,8 +170,10 @@ describe("POST /api/export/hotspots", () => {
 
       const weight = sum(rows.filter((r) => r.in_series).map((r) => r.weight));
       assert.ok(Math.abs(weight - want.harmonized) < 1e-9, `${weight} vs ${want.harmonized}`);
+      const calendar = await calendarMonthsFor(aoi, start, end);
+      const calendarTotal = sum(calendar.map((m) => m.value ?? 0));
       // The calendar rounds each month's value to 4 decimals.
-      assert.ok(Math.abs(weight - want.calendarTotal) <= want.months * 5e-5, `${weight} vs ${want.calendarTotal}`);
+      assert.ok(Math.abs(weight - calendarTotal) <= calendar.length * 5e-5, `${weight} vs ${calendarTotal}`);
     });
   }
 
@@ -199,7 +204,7 @@ describe("POST /api/export/hotspots", () => {
 
   it("returns only the header when nothing matches", async () => {
     const header = `${HOTSPOT_EXPORT_COLUMNS.join(",")}\n`;
-    assert.equal(await (await postHotspots(post(exportBody(NILE_AOI, "1990-01", "1990-12")))).text(), header);
+    assert.equal(await (await postHotspots(post(exportBody(NILE_AOI, "2000-01", "2000-10")))).text(), header);
     const se = await postHotspots(post(exportBody(SE_AOI)));
     assert.match(se.headers.get("content-disposition"), /hotornot_hotspots_se_australia_2000-11_2026-11\.csv/);
     assert.equal(await se.text(), header);
@@ -232,12 +237,14 @@ describe("POST /api/export/hotspots", () => {
       await expectError(response, 422, "too_many_rows");
     });
 
-    it("fails before the response starts when the first tile is missing", async () => {
-      await assert.rejects(handleHotspotExport(post(exportBody(FIXTURE_BOX)), { source }), { code: "missing_tile" });
+    it("answers 503 data_unavailable before the download starts when the first tile is missing", async () => {
+      const response = await handleHotspotExport(post(exportBody(FIXTURE_BOX)), { source });
+      assert.equal(response.headers.get("retry-after"), "60");
+      await expectError(response, 503, "data_unavailable");
     });
 
     it("does not open tiles for an empty range", async () => {
-      const response = await handleHotspotExport(post(exportBody(FIXTURE_BOX, "1999-01", "2000-10")), { source });
+      const response = await handleHotspotExport(post(exportBody(FIXTURE_BOX, "2000-01", "2000-10")), { source });
       assert.equal(await response.text(), `${HOTSPOT_EXPORT_COLUMNS.join(",")}\n`);
     });
   });
@@ -275,6 +282,7 @@ describe("POST /api/export/hotspots", () => {
 
   it("validates the body like the calendar", async () => {
     await expectError(await postHotspots(post("{not json")), 422, "invalid_aoi");
+    await expectError(await postHotspots(post(exportBody(NILE_AOI, "1999-12", "2026-11"))), 400, "bad_range");
     await expectError(await postHotspots(post(exportBody(BOW_TIE))), 422, "invalid_aoi");
     await expectError(await postHotspots(post(exportBody(NILE_AOI, "2026-12", "2026-11"))), 400, "bad_range");
     await expectError(await postHotspots(post(exportBody(NILE_AOI, "2026-01", "2026-11", "both"))), 400, "bad_range");
@@ -300,11 +308,7 @@ describe("POST /api/export/summary", () => {
         response.headers.get("content-disposition"),
         'attachment; filename="hotornot_summary_nile_delta_2011-06_2026-11.csv"',
       );
-      const { coveredCells } = snap(TRIANGLE, serving.getRegionCells(NILE), serving.getRegion(NILE).bbox);
-      const calendar = buildMonths(serving.sumCells(NILE, coveredCells), serving.getMonths(NILE), series, {
-        start: "2011-06",
-        end: "2026-11",
-      });
+      const calendar = await calendarMonthsFor(TRIANGLE, "2011-06", "2026-11", series);
       const months = parseSummary(await response.text());
       assert.equal(months.length, 15 * 12 + 6);
       assert.deepEqual(months, calendar);
@@ -375,13 +379,8 @@ describe("POST /api/current-month", () => {
         partial_coverage: Boolean(flag.terra_only) || flag.viirs_missing_days > 0,
       });
 
-      const calendar = buildMonths(
-        serving.sumCells(NILE, snap(aoi, serving.getRegionCells(NILE)).coveredCells),
-        months,
-        "harmonized",
-        { start: "2026-11", end: "2026-11" },
-      );
-      assert.equal(body.value, calendar[0].value);
+      const [calendar] = await calendarMonthsFor(aoi, "2026-11", "2026-11");
+      assert.equal(body.value, calendar.value);
     });
   }
 
@@ -402,6 +401,32 @@ describe("POST /api/current-month", () => {
     await expectError(await postCurrentMonth(post({ aoi: BOW_TIE })), 422, "invalid_aoi");
     await expectError(await postCurrentMonth(post({ aoi: TWO_CELLS })), 422, "too_small");
     await expectError(await postCurrentMonth(post({ aoi: ATLANTIC })), 422, "outside_regions");
+  });
+});
+
+describe("before anything is published", () => {
+  let dir;
+  let source;
+  before(() => {
+    dir = mkdtempSync(join(tmpdir(), "hotornot-w05-empty-"));
+    source = new DataSource({ baseUrl: dir });
+  });
+  after(() => {
+    source.close();
+    rmSync(dir, { recursive: true, force: true });
+  });
+
+  it("serves W01's mocks, marked as mocks", async () => {
+    for (const response of [
+      await handleCurrentMonth(post({ aoi: NILE_AOI }), { source }),
+      await handleSummaryExport(post(exportBody(NILE_AOI, "2025-01", "2026-11")), { source }),
+      await handleHotspotExport(post(exportBody(NILE_AOI, "2025-01", "2026-11")), { source }),
+    ]) {
+      assert.equal(response.status, 200);
+      assert.equal(response.headers.get("x-hotornot-data"), "mock");
+      assert.ok((await response.text()).length > 0);
+    }
+    await expectError(await handleHotspotExport(post(exportBody(ATLANTIC)), { source }), 422, "outside_regions");
   });
 });
 
