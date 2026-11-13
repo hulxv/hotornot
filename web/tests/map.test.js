@@ -318,3 +318,16 @@ describe("basemap labels", async () => {
     assert.equal(layer.source, "hon-palestine");
   });
 });
+
+describe("outsideRegionsMask", async () => {
+  const { outsideRegionsMask } = await import("../public/js/map/geometry.js");
+  it("covers the world with one hole per region box", () => {
+    const regions = [{ bbox: [29.5, 29.8, 32.5, 31.8] }, { bbox: [-124.5, 32.5, -114, 42] }];
+    const { geometry } = outsideRegionsMask(regions);
+    assert.equal(geometry.type, "Polygon");
+    assert.equal(geometry.coordinates.length, 3);
+    assert.deepEqual(geometry.coordinates[0][0], [-180, -85]);
+    assert.deepEqual(geometry.coordinates[1], [[29.5, 29.8], [29.5, 31.8], [32.5, 31.8], [32.5, 29.8], [29.5, 29.8]]);
+    for (const ring of geometry.coordinates) assert.deepEqual(ring[0], ring.at(-1));
+  });
+});

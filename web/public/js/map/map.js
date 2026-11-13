@@ -5,6 +5,7 @@ import { cellPolygon } from "../../shared/grid.js";
 import {
   BOX_FIELDS,
   hatchImage,
+  outsideRegionsMask,
   parseCoordinate,
   polygonBbox,
   regionsToGeoJSON,
@@ -46,6 +47,7 @@ const COORDINATE_DECIMALS = 6;
 const COLORS = {
   counted: "#6d28d9",
   noDataFill: "#9ca3af",
+  outside: "#4b5563",
   ink: "#111827",
   paper: "#ffffff",
   region: "#1f2937",
@@ -188,6 +190,7 @@ function buildPanel(container, regions, prefix) {
     el("li", {}, swatch("counted"), "Counted cells", countedCount),
     el("li", {}, swatch("no-data"), "No data, not counted", uncoveredCount),
     el("li", {}, swatch("region"), "Demo region"),
+    el("li", {}, swatch("outside"), "Outside the regions, no data"),
   );
 
   container.classList.add("hon-map");
@@ -296,6 +299,11 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
     map.addLayer(palestineLabelLayer(styleLayers, "hon-palestine"));
     const firstLabel = styleLayers.find((layer) => layer.type === "symbol")?.id;
     map.addImage(HATCH_IMAGE, hatchImage(), { pixelRatio: 2 });
+    map.addSource("hon-outside", { type: "geojson", data: outsideRegionsMask(regions) });
+    map.addLayer(
+      { id: "hon-outside", type: "fill", source: "hon-outside", paint: { "fill-color": COLORS.outside, "fill-opacity": 0.45 } },
+      firstLabel,
+    );
     map.addSource("hon-regions", { type: "geojson", data: regionsToGeoJSON(regions) });
     map.addSource("hon-counted", { type: "geojson", data: EMPTY });
     map.addSource("hon-uncovered", { type: "geojson", data: EMPTY });
@@ -322,7 +330,7 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
         type: "line",
         source: "hon-regions",
         filter: ["==", ["geometry-type"], "Polygon"],
-        paint: { "line-color": COLORS.region, "line-width": 1.5, "line-dasharray": [4, 2] },
+        paint: { "line-color": COLORS.region, "line-width": 2.5 },
       },
       firstLabel,
     );

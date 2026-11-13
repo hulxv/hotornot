@@ -208,6 +208,17 @@ export function regionsToGeoJSON(regions) {
 }
 
 /**
+ * The world with a hole for each region box, for shading everything that has no data.
+ * Latitudes stop at ±85 because Web Mercator does not reach the poles.
+ * @param {{ bbox: Bbox }[]} regions boxes that do not overlap
+ */
+export function outsideRegionsMask(regions) {
+  const world = [[-180, -85], [180, -85], [180, 85], [-180, 85], [-180, -85]];
+  const holes = regions.map(({ bbox: [w, s, e, n] }) => [[w, s], [w, n], [e, n], [e, s], [w, s]]);
+  return { type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [world, ...holes] } };
+}
+
+/**
  * Bounds of a polygon's outer ring as [west, south, east, north].
  * @param {Aoi} polygon
  * @returns {Bbox}
