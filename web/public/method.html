@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Method · HotOrNot</title>
-    <meta name="description" content="How HotOrNot puts MODIS and VIIRS hotspots on one scale, and the held-out tests that show it works.">
+    <title>Method · Hot or Not</title>
+    <meta name="description" content="How Hot or Not puts MODIS and VIIRS hotspots on one scale, and the held-out tests that show it works.">
     <link rel="stylesheet" href="/css/base.css">
     <link rel="stylesheet" href="/js/method/method.css">
     <link rel="modulepreload" href="/js/method/page.js">
@@ -25,11 +25,11 @@
   <body>
     <a class="skip-link" href="#content">Skip to the content</a>
     <header class="site-header">
-      <a href="/" class="brand">HotOrNot</a>
+      <a href="/" class="brand">Hot or Not</a>
       <a href="/">Back to the calendar</a>
     </header>
     <main id="content" class="method">
-      <h1>How HotOrNot puts MODIS and VIIRS on one scale</h1>
+      <h1>How Hot or Not puts MODIS and VIIRS on one scale</h1>
       <p class="lede">
         A burning calendar from 2000 to today needs one unit across two generations of satellites. This page shows how
         we count every VIIRS hotspot in MODIS units, and the tests on held-out years that show the seam is gone.
@@ -68,7 +68,7 @@
       <section id="weights" aria-labelledby="weights-title">
         <h2 id="weights-title">How a VIIRS hotspot becomes MODIS units</h2>
         <p class="prose">
-          HotOrNot counts each VIIRS hotspot as the number of MODIS hotspots it stands for, so the whole record, from
+          Hot or Not counts each VIIRS hotspot as the number of MODIS hotspots it stands for, so the whole record, from
           2000 to today, is in one unit: MODIS-equivalent hotspots. A MODIS hotspot counts 1. A VIIRS hotspot counts its
           weight <var>w</var> = <var>s</var> × <var>k</var>, and a month's harmonized value is the sum of the weights.
         </p>

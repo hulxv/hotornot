@@ -421,7 +421,7 @@ export async function startApp(doc = document) {
   /** @param {string} id */
   function selectPreset(id) {
     if (!regionById.has(id)) return;
-    setState({ region: /** @type {AppState["region"]} */ (id), area: { kind: "preset" } });
+    setState({ region: /** @type {AppState["region"]} */ (id), area: { kind: "preset" }, start: null, end: null });
     showArea();
   }
 
