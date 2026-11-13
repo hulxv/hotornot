@@ -6,7 +6,7 @@
 
 `publish/` sits next to $HOTORNOT_DB, so every checkout adds to one version history. A version
 is built in `.vN.partial` and renamed when complete, and latest.json is replaced last, here and
-in every --copy-to or --upload target, so a reader never sees half a version.
+in every --copy-to directory, so a reader never sees half a version.
 
 Series roles and weights are loaded once into id-sorted arrays (about 230 MB for 13M hotspots)
 instead of being joined per row, which reads `series` and `weights` at random. Hotspots are
@@ -21,9 +21,6 @@ import re
 import shutil
 import sqlite3
 import time
-import urllib.error
-import urllib.parse
-import urllib.request
 from array import array
 from bisect import bisect_left
 from collections import Counter, defaultdict
@@ -35,7 +32,7 @@ from hotornot.steps.matchups import HotspotsNotReady, hotspots_version
 from hotornot.steps.series import IN_SERIES, MODIS_ROLES, ROLE_INDEX, ROLES, SATELLITES, month_starts
 
 NAME = "publish"
-HELP = "Build serving.sqlite and point tiles as a new data version; optionally copy or upload it."
+HELP = "Build serving.sqlite and point tiles as a new data version; optionally copy it."
 
 METHODS = ("ratio_v1", "model_v1")
 FALLBACK_METHOD = "ratio_v1"
@@ -94,13 +91,6 @@ CODE_INFO = tuple(
      MODIS_KIND if role in MODIS_ROLES
      else UNWEIGHTED_KIND if role in ("non_vegetation", "static_masked") else VIIRS_KIND)
     for role in ROLES)
-
-BLOB_API_URL = "https://vercel.com/api/blob"
-BLOB_API_VERSION = "11"
-IMMUTABLE_MAX_AGE = 31_536_000
-LATEST_MAX_AGE = 60
-CONTENT_TYPES = {".json": "application/json", ".sqlite": "application/vnd.sqlite3",
-                 ".gz": "application/gzip"}
 
 
 class PublishError(RuntimeError):
@@ -800,62 +790,6 @@ def copy_version(out_dir, version, target, published_at, log=print):
         "latest.json updated")
 
 
-class UploadError(RuntimeError):
-    pass
-
-
-def put_blob(api_url, token, pathname, path, max_age, attempts=3, sleep=None):
-    """PUT one file to Vercel Blob at a fixed pathname (no random suffix, overwrite allowed),
-    as @vercel/blob's put() does. Retries network errors, 429 and 5xx."""
-    url = f"{api_url}/?pathname={urllib.parse.quote(pathname)}"
-    size = path.stat().st_size
-    headers = {
-        "authorization": f"Bearer {token}",
-        "x-api-version": os.environ.get("VERCEL_BLOB_API_VERSION_OVERRIDE") or BLOB_API_VERSION,
-        "x-content-type": CONTENT_TYPES.get(path.suffix, "application/octet-stream"),
-        "x-add-random-suffix": "0",
-        "x-allow-overwrite": "1",
-        "x-cache-control-max-age": str(max_age),
-        "content-length": str(size),
-    }
-    for attempt in range(1, attempts + 1):
-        with open(path, "rb") as body:
-            request = urllib.request.Request(url, data=body, method="PUT", headers=headers)
-            try:
-                with urllib.request.urlopen(request, timeout=600) as response:
-                    text = response.read()
-                try:
-                    return json.loads(text)
-                except ValueError:
-                    raise UploadError(f"PUT {pathname}: the answer is not JSON: {text[:200]!r}") from None
-            except urllib.error.HTTPError as e:
-                detail = e.read(300).decode(errors="replace")
-                if (e.code < 500 and e.code != 429) or attempt == attempts:
-                    raise UploadError(f"PUT {pathname}: HTTP {e.code}: {detail}") from None
-            except (urllib.error.URLError, OSError) as e:
-                if attempt == attempts:
-                    raise UploadError(f"PUT {pathname}: {e}") from None
-        (sleep or time.sleep)(2 ** attempt)
-
-
-def upload_version(out_dir, version, token, log=print, sleep=None):
-    """Upload `vN/` then latest.json; returns the blob URL of latest.json."""
-    api_url = (os.environ.get("VERCEL_BLOB_API_URL") or BLOB_API_URL).rstrip("/")
-    source = out_dir / version
-    files = sorted(p for p in source.rglob("*") if p.is_file())
-    started = time.monotonic()
-    for n, path in enumerate(files, start=1):
-        put_blob(api_url, token, f"{version}/{path.relative_to(source).as_posix()}", path,
-                 IMMUTABLE_MAX_AGE, sleep=sleep)
-        if n % 100 == 0:
-            log(f"uploaded {n} of {len(files)} files")
-    url = put_blob(api_url, token, "latest.json", out_dir / "latest.json", LATEST_MAX_AGE,
-                   sleep=sleep).get("url")
-    log(f"uploaded {version} ({len(files)} files) and latest.json in "
-        f"{time.monotonic() - started:.0f} s: {url}")
-    return url
-
-
 def prune(directory, keep, log=print):
     """Delete versions beyond the newest `keep` (0 keeps all); never the one latest.json names."""
     if keep <= 0:
@@ -871,34 +805,22 @@ def prune(directory, keep, log=print):
     return removed
 
 
-def publish(con, cfg, out_dir=None, method=None, copy_to=(), verify_first=False, reuse=None,
-            keep=2, token=None, log=print):
-    """Build a new version (or take `reuse`), optionally verify it, make it latest, then copy,
-    upload and prune. Returns the run report."""
+def publish(con, cfg, out_dir=None, method=None, copy_to=(), verify_first=False, keep=2,
+            log=print):
+    """Build a new version, optionally verify it, make it latest, then copy and prune.
+    Returns the run report, also stored as the `publish:report` artifact."""
     started = time.monotonic()
     out_dir = Path(out_dir) if out_dir else default_out_dir()
     out_dir.mkdir(parents=True, exist_ok=True)
     targets = [Path(d) for d in copy_to]
     targets = [d for d in targets if not (d.exists() and d.resolve() == out_dir.resolve())]
-    problems, table = [], []
-    if reuse:
-        version = reuse
-        if not VERSION_NAME.fullmatch(version) or not (out_dir / version / "serving.sqlite").is_file():
-            raise PublishError(f"{out_dir / version} is not a published version")
-        if verify_first:
-            problems, table = verify(con, cfg, out_dir / version, version, log)
-        latest = read_latest(out_dir)
-        published_at = latest["published_at"] if latest and latest["version"] == version else _now()
-        report = {"version": version, "reused": True}
-    else:
-        method = method or default_method(con)
-        version = next_version([out_dir, *targets])
-        log(f"publishing {version} with {method} weights into {out_dir}")
-        partial = out_dir / f".{version}.partial"
-        report = build(con, cfg, partial, version, method, log)
-        if verify_first:
-            problems, table = verify(con, cfg, partial, version, log)
+    method = method or default_method(con)
+    version = next_version([out_dir, *targets])
+    log(f"publishing {version} with {method} weights into {out_dir}")
+    partial = out_dir / f".{version}.partial"
+    report = build(con, cfg, partial, version, method, log)
     if verify_first:
+        problems, table = verify(con, cfg, partial, version, log)
         print_verify_table(table, log)
         report["verify"] = {"problems": problems[:50],
                             "max_abs_diff": max((abs(r["diff"]) for r in table), default=0.0),
@@ -907,24 +829,20 @@ def publish(con, cfg, out_dir=None, method=None, copy_to=(), verify_first=False,
             for p in problems[:20]:
                 log(f"PROBLEM: {p}")
             raise PublishError(f"{len(problems)} problems; {version} was not made latest")
-    if not reuse:
-        partial.rename(out_dir / version)
-        published_at = _now()
+    partial.rename(out_dir / version)
+    published_at = _now()
     write_latest(out_dir, version, published_at)
     report["published_at"] = published_at
     for target in targets:
         copy_version(out_dir, version, target, published_at, log)
     report["copied_to"] = [str(t) for t in targets]
-    if token:
-        report["uploaded"] = upload_version(out_dir, version, token, log)
     for d in [out_dir, *targets]:
         prune(d, keep, log)
     sizes = size_report(out_dir / version)
     print_size_report(version, sizes, log)
     report["sizes"] = sizes
     report["seconds_total"] = round(time.monotonic() - started, 1)
-    if not reuse:
-        db.put_artifact("publish:report", report, con)
+    db.put_artifact("publish:report", report, con)
     log(f"\nlatest is {version} ({published_at}), {report['seconds_total']:.0f} s")
     return report
 
@@ -936,38 +854,23 @@ def add_arguments(parser):
     parser.add_argument("--copy-to", action="append", default=[], metavar="DIR",
                         help="also place the version and latest.json in DIR, hard-linked when on "
                              "the same filesystem, e.g. ../web/public/data (repeatable)")
-    parser.add_argument("--upload", action="store_true",
-                        help="upload the version, then latest.json, to Vercel Blob with "
-                             "$BLOB_READ_WRITE_TOKEN")
     parser.add_argument("--verify", action="store_true",
                         help="before the version becomes latest, check it against the pipeline "
                              "database in SQL and read every tile back (a few minutes)")
-    parser.add_argument("--reuse", metavar="VERSION",
-                        help="skip the build: make this existing version latest again and copy "
-                             "or upload it (to roll back, or to retry an upload)")
     parser.add_argument("--keep", type=int, default=2,
-                        help="versions kept in the output and --copy-to directories; 0 keeps "
+                        help="versions kept in publish/ and the --copy-to directories; 0 keeps "
                              "all (default 2)")
-    parser.add_argument("--out", type=Path,
-                        help="output directory (default: publish/ next to $HOTORNOT_DB)")
 
 
 def run(args):
-    token = None
-    if args.upload:
-        token = os.environ.get("BLOB_READ_WRITE_TOKEN")
-        if not token:
-            print("publish: --upload needs BLOB_READ_WRITE_TOKEN in the environment")
-            return 2
     con = db.connect()
     try:
-        publish(con, config.load_config(), out_dir=args.out, method=args.method,
-                copy_to=args.copy_to, verify_first=args.verify, reuse=args.reuse,
-                keep=args.keep, token=token)
+        publish(con, config.load_config(), method=args.method, copy_to=args.copy_to,
+                verify_first=args.verify, keep=args.keep)
     except HotspotsNotReady:
         print("publish: hotspots is being rebuilt; publish after normalize and series finish")
         return 1
-    except (PublishError, UploadError) as e:
+    except PublishError as e:
         print(f"publish: {e}")
         return 1
     finally:

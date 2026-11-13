@@ -1,16 +1,13 @@
 import contextlib
 import gzip
 import hashlib
-import http.server
 import io
 import itertools
 import json
 import os
 import sqlite3
 import tempfile
-import threading
 import unittest
-import urllib.parse
 from collections import defaultdict
 from pathlib import Path
 from unittest import mock
@@ -441,7 +438,7 @@ class Refusals(Fixture):
         self.assertEqual(json.loads((self.out / "latest.json").read_text())["version"], "v1")
 
 
-class CopyAndUpload(Fixture):
+class CopyTo(Fixture):
     def test_copy_to_hard_links_then_replaces_latest(self):
         target = self.tmp / "web" / "public" / "data"
         self.publish(copy_to=[target])
@@ -465,89 +462,6 @@ class CopyAndUpload(Fixture):
         self.assertEqual(publish.versions_in(self.out), ["v5"])
         self.assertEqual(publish.versions_in(target), ["v4", "v5"])
 
-    def test_reuse_rolls_back_without_a_build(self):
-        self.publish()
-        self.publish()
-        with mock.patch.object(publish, "build", side_effect=AssertionError("no build")):
-            self.publish(reuse="v1", copy_to=[self.tmp / "t"])
-        self.assertEqual(json.loads((self.out / "latest.json").read_text())["version"], "v1")
-        self.assertEqual(json.loads((self.tmp / "t" / "latest.json").read_text())["version"], "v1")
-        with self.assertRaisesRegex(publish.PublishError, "not a published version"):
-            self.publish(reuse="v9")
-
-    def test_upload_sends_the_version_then_latest(self):
-        requests, fail_first = [], {"latest.json"}
-
-        class Stub(http.server.BaseHTTPRequestHandler):
-            def do_PUT(self):
-                body = self.rfile.read(int(self.headers["content-length"]))
-                pathname = dict(p.split("=", 1) for p in self.path.split("?", 1)[1].split("&"))["pathname"]
-                pathname = urllib.parse.unquote(pathname)
-                if pathname in fail_first:
-                    fail_first.discard(pathname)
-                    self.send_response(503)
-                    self.end_headers()
-                    return
-                requests.append((pathname, dict(self.headers), hashlib.sha1(body).hexdigest()))
-                answer = json.dumps({"url": f"https://store.public.blob.vercel-storage.com/{pathname}",
-                                     "pathname": pathname}).encode()
-                self.send_response(200)
-                self.send_header("content-type", "application/json")
-                self.send_header("content-length", str(len(answer)))
-                self.end_headers()
-                self.wfile.write(answer)
-
-            def log_message(self, *args):
-                pass
-
-        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Stub)
-        threading.Thread(target=server.serve_forever, daemon=True).start()
-        self.addCleanup(server.server_close)
-        self.addCleanup(server.shutdown)
-        env = {"VERCEL_BLOB_API_URL": f"http://127.0.0.1:{server.server_address[1]}"}
-        with mock.patch.dict(os.environ, env), mock.patch.object(publish.time, "sleep") as sleep:
-            report = self.publish(token="vercel_blob_rw_store_secret")
-        files = sorted(p for p in (self.out / "v1").rglob("*") if p.is_file())
-        self.assertEqual([r[0] for r in requests[:-1]],
-                         [f"v1/{p.relative_to(self.out / 'v1').as_posix()}" for p in files])
-        self.assertEqual(requests[-1][0], "latest.json")
-        sleep.assert_called_once_with(2)
-        self.assertEqual(report["uploaded"], "https://store.public.blob.vercel-storage.com/latest.json")
-        for (pathname, headers, digest), path in zip(requests, [*files, self.out / "latest.json"]):
-            self.assertEqual(digest, hashlib.sha1(path.read_bytes()).hexdigest(), pathname)
-            headers = {k.lower(): v for k, v in headers.items()}
-            self.assertEqual(headers["authorization"], "Bearer vercel_blob_rw_store_secret")
-            self.assertEqual(headers["x-add-random-suffix"], "0")
-            self.assertEqual(headers["x-allow-overwrite"], "1")
-            self.assertEqual(headers["x-cache-control-max-age"],
-                             "60" if pathname == "latest.json" else "31536000")
-        types = {r[0].rsplit(".", 1)[1]: {k.lower(): v for k, v in r[1].items()}["x-content-type"]
-                 for r in requests}
-        self.assertEqual(types, {"gz": "application/gzip", "sqlite": "application/vnd.sqlite3",
-                                 "json": "application/json"})
-
-    def test_upload_stops_on_a_client_error(self):
-        class Forbidden(http.server.BaseHTTPRequestHandler):
-            def do_PUT(self):
-                self.rfile.read(int(self.headers["content-length"]))
-                self.send_response(403)
-                self.end_headers()
-                self.wfile.write(b'{"error":{"code":"forbidden"}}')
-
-            def log_message(self, *args):
-                pass
-
-        server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), Forbidden)
-        threading.Thread(target=server.serve_forever, daemon=True).start()
-        self.addCleanup(server.server_close)
-        self.addCleanup(server.shutdown)
-        path = self.tmp / "x.json"
-        path.write_text("{}")
-        with self.assertRaisesRegex(publish.UploadError, "HTTP 403.*forbidden"):
-            publish.put_blob(f"http://127.0.0.1:{server.server_address[1]}", "t", "x.json", path, 60,
-                             sleep=lambda s: None)
-
-
 class Cli(Fixture):
     def test_step_is_discovered_and_runs(self):
         self.assertIn("publish", cli.discover_steps())
@@ -563,13 +477,6 @@ class Cli(Fixture):
         report = db.get_artifact("publish:report", self.con)
         self.assertEqual(report["version"], "v1")
         self.assertEqual(report["verify"]["problems"], [])
-
-    def test_upload_without_a_token(self):
-        with mock.patch.dict(os.environ, {"BLOB_READ_WRITE_TOKEN": ""}), \
-                contextlib.redirect_stdout(io.StringIO()) as out:
-            self.assertEqual(cli.main(["publish", "--upload"]), 2)
-        self.assertIn("BLOB_READ_WRITE_TOKEN", out.getvalue())
-        self.assertFalse(self.out.exists())
 
 
 if __name__ == "__main__":
