@@ -146,6 +146,18 @@ describe("shape checks", () => {
     assert.deepEqual(checkRegionValidation(region), []);
   });
 
+  it("accept an optional drift list in the validation summary", () => {
+    const summary = clone(validationSummary);
+    summary.drift = [
+      { region_id: "nile_delta", year: 2012, modis_snpp_ratio: 0.14 },
+      { region_id: "california", year: 2013, modis_snpp_ratio: null },
+    ];
+    assert.deepEqual(checkValidationSummary(summary), []);
+    summary.drift[0].modis_snpp_ratio = -1;
+    summary.drift[1].year = "2013";
+    assert.equal(checkValidationSummary(summary).length, 2);
+  });
+
   it("check latest.json, errors, the k table and meta keys", () => {
     assert.deepEqual(checkLatest({ version: "v3", published_at: "2026-11-13T18:00:00Z" }), []);
     assert.deepEqual(checkLatest({ version: "v3", published_at: "2026-11-13T18:00:00.123456+00:00" }), []);
