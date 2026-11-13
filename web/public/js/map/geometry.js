@@ -1,6 +1,5 @@
-// Pure helpers for the map: box-form validation and GeoJSON builders. No DOM, no MapLibre,
-// so node:test can run them. `cellPolygon` is passed in rather than imported, because
-// shared/grid.js is a separate module.
+// Pure helpers for the map: box-form validation and GeoJSON builders. No DOM and no MapLibre,
+// so node:test runs them; `cellPolygon` is a parameter so tests can supply their own grid.
 import { GRID_DEG } from "../../shared/contracts.js";
 
 /**

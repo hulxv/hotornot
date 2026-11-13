@@ -1,6 +1,7 @@
 // Map panel: region presets, polygon drawing with terra-draw, a west/south/east/north box
 // form and the snapped-cell overlay. Needs the vendored globals `maplibregl`, `terraDraw` and
 // `terraDrawMaplibreGlAdapter`, loaded with classic <script> tags before this module runs.
+import { cellPolygon } from "../../shared/grid.js";
 import {
   BOX_FIELDS,
   hatchImage,
@@ -61,20 +62,9 @@ const MESSAGES = {
   edited: "Area updated.",
   cancelled: "Drawing cancelled.",
   cleared: "Area cleared.",
-  noGrid: "The cell overlay is unavailable: /shared/grid.js did not load.",
 };
 
 let instanceCount = 0;
-/** @type {Promise<{ cellPolygon: (cellId: number) => any } | null> | undefined} */
-let gridModule;
-
-function loadGrid() {
-  gridModule ??= import("../../shared/grid.js").catch((error) => {
-    console.warn("hotornot map: /shared/grid.js did not load, so no cells are drawn", error);
-    return null;
-  });
-  return gridModule;
-}
 
 function ensureStylesheet() {
   if (document.querySelector("link[data-hon-map]")) return;
@@ -509,13 +499,9 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
     const counted = [...cellIds];
     const uncovered = [...uncoveredIds];
     const call = ++snapCall;
-    const [grid] = await Promise.all([loadGrid(), loaded]);
+    await loaded;
     if (call !== snapCall) return;
-    if (!grid) {
-      announce(MESSAGES.noGrid);
-      return;
-    }
-    const overlay = snappedOverlay(counted, uncovered, grid.cellPolygon);
+    const overlay = snappedOverlay(counted, uncovered, cellPolygon);
     map.getSource("hon-counted").setData(overlay.counted);
     map.getSource("hon-uncovered").setData(overlay.uncovered);
     ui.countedCount.textContent = ` (${overlay.countedCells.toLocaleString("en-US")})`;

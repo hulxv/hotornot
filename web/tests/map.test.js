@@ -11,6 +11,7 @@ import {
   snappedOverlay,
   validateBox,
 } from "../public/js/map/geometry.js";
+import { cellPolygon as sharedCellPolygon, cellsInBbox } from "../public/shared/grid.js";
 import metadata from "../mocks/metadata.json" with { type: "json" };
 
 // The CONTRACTS cell formula, standing in for shared/grid.js.
@@ -179,6 +180,17 @@ describe("cellsToGeoJSON", () => {
     assert.deepEqual(cellsToGeoJSON(ids, asFeature), expected);
     assert.deepEqual(cellsToGeoJSON(ids, asRing), expected);
     assert.throws(() => cellsToGeoJSON(ids, () => ({ type: "Point", coordinates: [0, 0] })), TypeError);
+  });
+
+  it("gives the same rectangles with shared/grid.js as with the local formula", () => {
+    const ids = cellsInBbox([-58, -30.5, -57, -29.4]).filter((id) => id % 3 !== 0);
+    const local = cellsToGeoJSON(ids, cellPolygon).features;
+    const shared = cellsToGeoJSON(ids, sharedCellPolygon).features;
+    assert.equal(shared.length, local.length);
+    shared.forEach((feature, i) => {
+      assert.deepEqual(feature.properties, local[i].properties);
+      nearAll(polygonBbox(feature.geometry), polygonBbox(local[i].geometry));
+    });
   });
 
   it("gives an empty collection for no cells and rejects ids off the grid", () => {

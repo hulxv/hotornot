@@ -63,9 +63,9 @@
       <header>
         <h1>Map module (dev page)</h1>
         <p class="muted">
-          <code>/js/map/map.js</code> with regions from the mock <code>/api/metadata</code>. Cells are snapped
-          here with a stand-in for <code>shared/aoi.js</code>; they are drawn only once <code>/shared/grid.js</code>
-          (W03) is present.
+          <code>/js/map/map.js</code> with regions from the mock <code>/api/metadata</code>. Areas are checked and
+          snapped in the browser with <code>/shared/aoi.js</code>, against region cells built from
+          <code>cellsInBbox</code>, where W08 will call the API instead.
         </p>
       </header>
       <div id="map"></div>
@@ -79,6 +79,9 @@
     <script type="module">
       import { createMap } from "/js/map/map.js";
       import { boxPolygon } from "/js/map/geometry.js";
+      import { pickRegion, snap, validateAoi } from "/shared/aoi.js";
+      import { cellsInBbox } from "/shared/grid.js";
+      import { MIN_COVERED_CELLS } from "/shared/contracts.js";
 
       // n_argentina cells whose centers lie in Bolivia or Brazil (Natural Earth boundaries from
       // the pipeline database), as [row, first col, last col]. P10 publishes them with covered = 0.
@@ -117,46 +120,15 @@
       const metadata = await (await fetch("/api/metadata")).json();
       const regions = metadata.regions;
 
-      const inside = (lon, lat, ring) => {
-        let hit = false;
-        for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
-          const [xi, yi] = ring[i];
-          const [xj, yj] = ring[j];
-          if (yi > lat !== yj > lat && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) hit = !hit;
+      const regionCellsCache = new Map();
+      const regionCells = (region) => {
+        if (!regionCellsCache.has(region.id)) {
+          const uncovered = region.id === "n_argentina" ? UNCOVERED : new Set();
+          const rows = cellsInBbox(region.bbox).map((id) => ({ cell_id: id, covered: uncovered.has(id) ? 0 : 1 }));
+          regionCellsCache.set(region.id, rows);
         }
-        return hit;
+        return regionCellsCache.get(region.id);
       };
-
-      // Stand-in for the CONTRACTS AOI rules: region of largest bbox overlap, then the region
-      // cells whose center is inside the polygon.
-      function snap(polygon) {
-        const ring = polygon.coordinates[0];
-        const lons = ring.map(([lon]) => lon);
-        const lats = ring.map(([, lat]) => lat);
-        const box = [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
-        const overlap = (b) =>
-          Math.max(0, Math.min(box[2], b[2]) - Math.max(box[0], b[0])) * Math.max(0, Math.min(box[3], b[3]) - Math.max(box[1], b[1]));
-        const region = regions.reduce((best, r) => (overlap(r.bbox) > (best ? overlap(best.bbox) : 0) ? r : best), null);
-        if (!region) return null;
-        const [west, south, east, north] = region.bbox;
-        const cells = [];
-        const uncovered = [];
-        const rowFrom = Math.floor((Math.max(box[1], south) + 90) * 20);
-        const rowTo = Math.floor((Math.min(box[3], north) + 90) * 20);
-        const colFrom = Math.floor((Math.max(box[0], west) + 180) * 20);
-        const colTo = Math.floor((Math.min(box[2], east) + 180) * 20);
-        for (let row = rowFrom; row <= rowTo; row += 1) {
-          const lat = (row + 0.5) / 20 - 90;
-          if (lat < south || lat > north) continue;
-          for (let col = colFrom; col <= colTo; col += 1) {
-            const lon = (col + 0.5) / 20 - 180;
-            if (lon < west || lon > east || !inside(lon, lat, ring)) continue;
-            const id = row * 7200 + col;
-            (region.id === "n_argentina" && UNCOVERED.has(id) ? uncovered : cells).push(id);
-          }
-        }
-        return { region, cells, uncovered };
-      }
 
       function show(polygon, { source }) {
         if (!polygon) {
@@ -164,22 +136,28 @@
           map.setSnapped([]);
           return;
         }
-        const started = performance.now();
-        const result = snap(polygon);
         const json = JSON.stringify(polygon);
         const head = `onAoiChange(${source}): ${polygon.coordinates[0].length - 1} vertices`;
-        if (!result) {
-          write(`${head}, outside every region\n${json}`);
+        const body = json.length > 600 ? `${json.slice(0, 600)}…` : json;
+        const valid = validateAoi(polygon);
+        const picked = valid.ok ? pickRegion(polygon, regions) : valid;
+        if (!picked.ok) {
+          write(`${head}, ${picked.code}: ${picked.message}\n${body}`);
           map.setSnapped([]);
           return;
         }
+        const started = performance.now();
+        const { cells, coveredCells } = snap(polygon, regionCells(picked.region), picked.region.bbox);
+        const covered = new Set(coveredCells);
+        const uncovered = cells.filter((id) => !covered.has(id));
         const ms = (performance.now() - started).toFixed(1);
+        const small = coveredCells.length < MIN_COVERED_CELLS ? ", too_small" : "";
         write(
-          `${head}, ${result.region.id}: ${result.cells.length} counted and ${result.uncovered.length} ` +
-            `no-data cells (snapped in ${ms} ms)\n${json.length > 600 ? `${json.slice(0, 600)}…` : json}`,
+          `${head}, ${picked.region.id} (clipped ${picked.clippedFraction}): ${coveredCells.length} counted and ` +
+            `${uncovered.length} no-data cells${small} (snapped in ${ms} ms)\n${body}`,
         );
         const drawStarted = performance.now();
-        map.setSnapped(result.cells, result.uncovered).then(() => {
+        map.setSnapped(coveredCells, uncovered).then(() => {
           write(`setSnapped resolved in ${(performance.now() - drawStarted).toFixed(1)} ms`);
         });
       }
