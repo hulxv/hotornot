@@ -193,7 +193,7 @@ export function snappedOverlay(cellIds, uncoveredIds, cellPolygon) {
 }
 
 /**
- * Region outlines plus a label point at each north-west corner.
+ * Region outlines plus a label point at the middle of each box's top edge.
  * @param {Pick<RegionMeta, "id" | "name" | "bbox">[]} regions
  * @returns {FeatureCollection}
  */
@@ -202,9 +202,47 @@ export function regionsToGeoJSON(regions) {
     type: "FeatureCollection",
     features: regions.flatMap(({ id, name, bbox }) => [
       { type: "Feature", properties: { id, name }, geometry: boxPolygon(bbox) },
-      { type: "Feature", properties: { id, name }, geometry: { type: "Point", coordinates: [bbox[0], bbox[3]] } },
+      { type: "Feature", properties: { id, name }, geometry: { type: "Point", coordinates: [(bbox[0] + bbox[2]) / 2, bbox[3]] } },
     ]),
   };
+}
+
+/**
+ * The bounds holding every region box, as MapLibre's [[west, south], [east, north]]; the whole
+ * map when there are no regions.
+ * @param {{ bbox: Bbox }[]} regions
+ */
+export function regionsBounds(regions) {
+  if (regions.length === 0) return [[-180, -85], [180, 85]];
+  const boxes = regions.map(({ bbox }) => bbox);
+  return [
+    [Math.min(...boxes.map((b) => b[0])), Math.min(...boxes.map((b) => b[1]))],
+    [Math.max(...boxes.map((b) => b[2])), Math.max(...boxes.map((b) => b[3]))],
+  ];
+}
+
+/**
+ * The region whose box holds a clicked point, or lies within `margin` degrees of it; the
+ * nearest when several do. Longitudes from any world copy are accepted.
+ * @template {{ bbox: Bbox }} R
+ * @param {Position} position [lon, lat]
+ * @param {R[]} regions
+ * @param {number} [margin] degrees
+ * @returns {R | null}
+ */
+export function regionAt([lon, lat], regions, margin = 0) {
+  const x = ((((lon + 180) % 360) + 360) % 360) - 180;
+  let best = null;
+  let bestDistance = Infinity;
+  for (const region of regions) {
+    const [west, south, east, north] = region.bbox;
+    const distance = Math.max(west - x, x - east, south - lat, lat - north, 0);
+    if (distance <= margin && distance < bestDistance) {
+      best = region;
+      bestDistance = distance;
+    }
+  }
+  return best;
 }
 
 /**
