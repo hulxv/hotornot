@@ -1,0 +1,16 @@
+{
+  "name": "hotornot-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "dev": "node server.js",
+    "test": "node --test tests/",
+    "check": "node scripts/check.js",
+    "mocks": "node scripts/generate-mocks.js",
+    "vendor": "node scripts/vendor.js"
+  }
+}
