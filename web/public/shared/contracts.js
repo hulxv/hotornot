@@ -4,7 +4,7 @@
  * @typedef {"nile_delta" | "california" | "se_australia" | "n_argentina"} RegionId
  * @typedef {"harmonized" | "raw"} Series
  * @typedef {"ratio_v1" | "model_v1"} WeightMethod
- * @typedef {"invalid_aoi" | "too_many_vertices" | "outside_regions" | "too_small" | "bad_range" | "too_many_rows"} ErrorCode
+ * @typedef {"invalid_aoi" | "too_many_vertices" | "outside_regions" | "too_small" | "bad_range" | "too_many_rows" | "data_unavailable"} ErrorCode
  * @typedef {[number, number]} Position [lon, lat]
  * @typedef {{ type: "Polygon", coordinates: [Position[]] }} Aoi
  * @typedef {{ aoi: Aoi, start: string, end: string, series: Series }} CalendarRequest
@@ -59,9 +59,10 @@ export const ERROR_CODES = Object.freeze([
   "too_small",
   "bad_range",
   "too_many_rows",
+  "data_unavailable",
 ]);
 
-/** @type {Readonly<Record<ErrorCode, 400 | 422>>} */
+/** @type {Readonly<Record<ErrorCode, 400 | 422 | 503>>} */
 export const ERROR_STATUS = Object.freeze({
   invalid_aoi: 422,
   too_many_vertices: 422,
@@ -69,6 +70,7 @@ export const ERROR_STATUS = Object.freeze({
   too_small: 422,
   bad_range: 400,
   too_many_rows: 422,
+  data_unavailable: 503,
 });
 
 export const TILE_COLUMNS = Object.freeze([

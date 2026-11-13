@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { mkdtempSync } from "node:fs";
 import { stat } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { request as httpRequest } from "node:http";
 import { after, before, describe, it } from "node:test";
 import { POST as postCalendar } from "../api/calendar.js";
@@ -17,6 +20,9 @@ import {
   checkMetadata,
 } from "../public/shared/contracts.js";
 import { createAppServer } from "../server.js";
+
+// These tests cover the mock fallback, so they must not see data published to public/data.
+process.env.DATA_BASE_URL = mkdtempSync(join(tmpdir(), "hotornot-no-data-"));
 
 const NILE_AOI = {
   type: "Polygon",

@@ -94,11 +94,7 @@ export async function openPublished(source) {
   }
 }
 
-/**
- * Published data that exists but cannot be read. CONTRACTS lists only client errors, so this
- * 503 carries its own code, `data_unavailable`.
- * @param {DataError} error
- */
+/** @param {DataError} error */
 export function dataUnavailableResponse(error) {
   console.error(`hotornot data: ${error.code}: ${error.message}`);
   return Response.json(

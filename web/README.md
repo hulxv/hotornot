@@ -14,8 +14,8 @@ npm run vendor            # re-download public/vendor/ and rewrite its manifest
 - `public/shared/contracts.js`: validators and shape checks for the API and published data.
   Used by the browser and the server.
 - `api/`: one file per route, exporting `GET` or `POST(request)` that returns a `Response`.
-  They serve `mocks/` until the data layer lands.
+  They read published data through `lib/data/` and fall back to `mocks/` when none is published.
 - `public/vendor/`: MapLibre GL (global `maplibregl`), terra-draw (`terraDraw`,
   `terraDrawMaplibreGlAdapter`) and ECharts (`echarts`), pinned in `manifest.json`.
 - `DATA_BASE_URL`: where published data lives, an `https://` URL or a local directory
-  (default `./public/data`). Unused while the routes serve mocks.
+  (default `./public/data`, filled by the pipeline's `publish --copy-to ../web/public/data`).
