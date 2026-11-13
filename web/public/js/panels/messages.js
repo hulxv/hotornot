@@ -51,7 +51,7 @@ export function errorMessage(error, regions) {
       };
     case "too_many_rows":
       return {
-        title: `This export has more than ${count(MAX_EXPORT_ROWS)} hotspots.`,
+        title: `This download has more than ${count(MAX_EXPORT_ROWS)} fire detections.`,
         detail: `${error.message || "Narrow the area or the years."} The monthly summary has no such limit.`,
       };
     case "data_unavailable": {

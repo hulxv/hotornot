@@ -82,9 +82,9 @@ function saveUrl(url, filename) {
  */
 export function createExportsPanel(container, { getContext, describeError }) {
   const buttons = {
-    hotspots: h("button", { type: "button", class: "button", "data-export": "hotspots", text: "Hotspots (CSV)" }),
+    hotspots: h("button", { type: "button", class: "button", "data-export": "hotspots", text: "Fire detections (CSV)" }),
     summary: h("button", { type: "button", class: "button", "data-export": "summary", text: "Monthly summary (CSV)" }),
-    png: h("button", { type: "button", class: "button", "data-export": "png", text: "Calendar image (PNG)" }),
+    png: h("button", { type: "button", class: "button", "data-export": "png", text: "Calendar picture (PNG)" }),
   };
   const status = h("div", { class: "exports__status", role: "status" });
   let busy = false;
@@ -93,9 +93,9 @@ export function createExportsPanel(container, { getContext, describeError }) {
   const list = h(
     "ul",
     { class: "exports__list" },
-    h("li", {}, buttons.hotspots, h("span", { class: "exports__hint", text: "Every MODIS and VIIRS hotspot in the area and years, with its weight." })),
-    h("li", {}, buttons.summary, h("span", { class: "exports__hint", text: "One row per month: value, median, anomaly, rank and flags." })),
-    h("li", {}, buttons.png, h("span", { class: "exports__hint", text: "The calendar as drawn, with its title and legend." })),
+    h("li", {}, buttons.hotspots, h("span", { class: "exports__hint", text: "Every MODIS and VIIRS detection in the area and years, with its weight." })),
+    h("li", {}, buttons.summary, h("span", { class: "exports__hint", text: "One row per month: count, usual level, rank and notes." })),
+    h("li", {}, buttons.png, h("span", { class: "exports__hint", text: "The calendar as shown, with its title and legend." })),
   );
   container.replaceChildren(
     list,
@@ -114,7 +114,7 @@ export function createExportsPanel(container, { getContext, describeError }) {
   async function exportCsv(kind) {
     const context = getContext();
     if (!context) return;
-    const label = kind === "hotspots" ? "hotspot CSV" : "monthly summary";
+    const label = kind === "hotspots" ? "fire detections CSV" : "monthly summary";
     say(`Preparing the ${label}…`);
     const { blob, filename } = await postExport(kind, context.request);
     const name = filename ?? exportFilename(kind, context.response.region_id, context.request.start, context.request.end);

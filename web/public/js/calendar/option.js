@@ -1,6 +1,6 @@
 import { edgeColor, markColor } from "./color.js";
 import { CALENDAR_PALETTE } from "./palette.js";
-import { describeCalendar, formatNumber, seasonText, tooltipLines, unitsLabel } from "./transform.js";
+import { MONTH_LONG, describeCalendar, formatNumber, seasonText, tooltipLines, unitsLabel } from "./transform.js";
 
 /** @typedef {import("./transform.js").CalendarModel} CalendarModel */
 /** @typedef {import("./transform.js").Cell} Cell */
@@ -52,8 +52,9 @@ const line = ([x1, y1, x2, y2], stroke) => ({ type: "line", shape: { x1, y1, x2,
  * not-enough-history stripes, the provisional hatching and the partial-coverage dot. A no-data
  * cell gets no flag marks: there is nothing in it for them to qualify. A fill below 3:1 against
  * the background (the zero gray, the anomaly ramp's center, the light end of viridis) gets a
- * 1 px edge in a darker shade of itself, so every cell stands out from the page.
- * @param {Pick<Cell, "kind" | "color" | "provisional" | "partial">} cell
+ * 1 px edge in a darker shade of itself, so every cell stands out from the page. A highlighted
+ * cell gets a 2 px outline in the text color, drawn in the gap around it.
+ * @param {Pick<Cell, "kind" | "color" | "provisional" | "partial"> & { highlighted?: boolean }} cell
  */
 export function cellShapes(cell, x, y, w, h, palette = CALENDAR_PALETTE) {
   const hover = { style: { stroke: palette.hover, lineWidth: 2 } };
@@ -71,13 +72,17 @@ export function cellShapes(cell, x, y, w, h, palette = CALENDAR_PALETTE) {
   if (cell.kind === "no_history") {
     for (const segment of stripeSegments(x, y, w, h, LAYOUT.stripeSpacing)) shapes.push(line(segment, palette.noHistory.stroke));
   }
-  if (cell.kind === "no_data") return shapes;
-  const mark = markColor(fill, palette.marksDark, palette.marksLight);
-  if (cell.provisional) {
-    for (const segment of hatchSegments(x, y, w, h, LAYOUT.hatchSpacing)) shapes.push(line(segment, mark));
+  if (cell.kind !== "no_data") {
+    const mark = markColor(fill, palette.marksDark, palette.marksLight);
+    if (cell.provisional) {
+      for (const segment of hatchSegments(x, y, w, h, LAYOUT.hatchSpacing)) shapes.push(line(segment, mark));
+    }
+    if (cell.partial) {
+      shapes.push({ type: "circle", shape: { cx: x + w - 4.5, cy: y + 4.5, r: 2.5 }, style: { fill: mark, stroke: fill, lineWidth: 1 } });
+    }
   }
-  if (cell.partial) {
-    shapes.push({ type: "circle", shape: { cx: x + w - 4.5, cy: y + 4.5, r: 2.5 }, style: { fill: mark, stroke: fill, lineWidth: 1 } });
+  if (cell.highlighted) {
+    shapes.push({ type: "rect", shape: { x: x - 1, y: y - 1, width: w + 2, height: h + 2 }, style: { fill: "none", stroke: palette.text, lineWidth: 2 } });
   }
   return shapes;
 }
@@ -92,13 +97,15 @@ export function defaultTitle(model) {
   return `Burning calendar · ${model.regionId}`;
 }
 
+const capitalize = (text) => text.replace(/^./, (c) => c.toUpperCase());
+
 /** @param {CalendarModel} model */
 export function defaultSubtitle(model) {
   const { start_year: from, end_year: to } = model.baseline;
   const what = {
-    harmonized: `Harmonized MODIS + VIIRS, ${unitsLabel(model.units)} per month`,
-    anomaly: `Each month against its ${from}–${to} median`,
-    raw: "Raw hotspot counts per month, MODIS above VIIRS, one shared scale",
+    harmonized: `${capitalize(unitsLabel(model.units))} per month, MODIS and VIIRS on one scale`,
+    anomaly: `Each month compared with normal: its ${from}–${to} median`,
+    raw: "Raw counts per month before harmonizing, MODIS above VIIRS, one shared scale",
   }[model.view];
   const details = [
     `${model.aoi.covered_cells} cells, ${formatNumber(model.aoi.area_km2)} km²`,
@@ -114,11 +121,11 @@ function legendCaption(model) {
   const { start_year: from, end_year: to } = model.baseline;
   if (!model.scale) {
     const anyZero = model.panels.some((panel) => panel.cells.some((cell) => cell.kind === "zero"));
-    return anyZero ? "No month above zero in this view" : "No data for this view";
+    return anyZero ? "No fires in any month of this view" : "No data for this view";
   }
-  if (model.view === "anomaly") return `Month against its ${from}–${to} median (log2 scale)`;
-  if (model.view === "raw") return "Raw hotspots per month, both sensors (log scale)";
-  return `${unitsLabel(model.units)} per month (log scale)`;
+  if (model.view === "anomaly") return `Compared with normal, the ${from}–${to} median for that month (log2 scale)`;
+  if (model.view === "raw") return "Raw detections per month, each sensor on its own (log scale)";
+  return `${capitalize(unitsLabel(model.units))} per month (log scale)`;
 }
 
 /** @param {CalendarModel} model */
@@ -127,11 +134,15 @@ function legendSwatches(model, palette) {
     model.view === "anomaly" ? palette.diverging[palette.diverging.length - 3] : palette.sequential[Math.floor(palette.sequential.length / 2)];
   const items = [];
   if (model.view === "anomaly") items.push({ label: "Not enough history", cell: { kind: "no_history", color: palette.noHistory.fill } });
-  else items.push({ label: "0 hotspots", cell: { kind: "zero", color: palette.zero } });
+  else items.push({ label: "No fires", cell: { kind: "zero", color: palette.zero } });
   items.push({ label: "No data", cell: { kind: "no_data", color: palette.noData.fill } });
-  items.push({ label: "Provisional (near-real-time)", cell: { kind: "value", color: sample, provisional: true } });
-  items.push({ label: "Partial coverage", cell: { kind: "value", color: sample, partial: true } });
+  items.push({ label: "Early numbers, may change", cell: { kind: "value", color: sample, provisional: true } });
+  items.push({ label: "Satellite passes missing", cell: { kind: "value", color: sample, partial: true } });
   if (model.seasonRuns.length > 0) items.push({ label: "Fire season", season: true });
+  const { highlight } = model;
+  if (highlight && model.panels.some((panel) => panel.cells.some((cell) => cell.highlighted))) {
+    items.push({ label: `Outlined: ${MONTH_LONG[highlight.month - 1]} ${highlight.year}`, cell: { kind: "value", color: sample, highlighted: true } });
+  }
   return items;
 }
 
@@ -150,12 +161,21 @@ function legendElements(model, top, width, palette) {
 
   elements.push(text(pad, top, legendCaption(model), { fontSize: 12 }));
   const barY = top + 20;
-  const barWidth = Math.min(legendBarWidth, width - 2 * pad);
+  const diverging = model.scale?.type === "diverging";
+  // Room for the "NOT" and "HOT" words at the ends of the anomaly bar.
+  const endWidth = diverging ? 34 : 0;
+  const barX = pad + endWidth;
+  const barWidth = Math.min(legendBarWidth, width - 2 * pad - 2 * endWidth);
   if (model.scale) {
-    const stops = model.scale.type === "diverging" ? palette.diverging : palette.sequential;
+    const stops = diverging ? palette.diverging : palette.sequential;
+    if (diverging) {
+      const end = { fontSize: 12, fontWeight: 700, verticalAlign: "middle" };
+      elements.push(text(barX - 6, barY + 5, "NOT", { ...end, align: "right", fill: stops[0] }));
+      elements.push(text(barX + barWidth + 6, barY + 5, "HOT", { ...end, fill: stops.at(-1) }));
+    }
     elements.push({
       type: "rect",
-      shape: { x: pad, y: barY, width: barWidth, height: 10 },
+      shape: { x: barX, y: barY, width: barWidth, height: 10 },
       style: {
         fill: {
           type: "linear",
@@ -168,7 +188,7 @@ function legendElements(model, top, width, palette) {
       },
     });
     for (const tick of model.scale.ticks) {
-      const x = pad + tick.t * barWidth;
+      const x = barX + tick.t * barWidth;
       elements.push(line([x, barY + 10, x, barY + 14], palette.text));
       const align = tick.t < 0.03 ? "left" : tick.t > 0.97 ? "right" : "center";
       elements.push(text(x, barY + 16, tick.label, { align }));

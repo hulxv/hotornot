@@ -29,6 +29,8 @@ import { PALESTINE_POINT, labelPatches, palestineLabelLayer } from "./labels.js"
  *   fitRegion: (regionId: RegionId) => void,
  *   clear: () => void,
  *   setAoi: (polygon: Aoi, options?: { fit?: boolean }) => Promise<void>,
+ *   startDrawing: () => Promise<void>,
+ *   openBoxForm: (message?: string) => void,
  * }} MapHandle
  */
 
@@ -374,10 +376,10 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
   }
 
   /** Drawing needs a pointer; keyboard users get the box form, opened and focused. */
-  function openBoxForm() {
+  function openBoxForm(message = MESSAGES.keyboard) {
     ui.box.open = true;
     ui.inputs.west.focus();
-    announce(MESSAGES.keyboard);
+    announce(message);
   }
 
   function cancelDrawing() {
@@ -554,5 +556,5 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
     await placeAoi(polygon, fit);
   }
 
-  return { setSnapped, fitRegion, clear, setAoi };
+  return { setSnapped, fitRegion, clear, setAoi, startDrawing, openBoxForm };
 }

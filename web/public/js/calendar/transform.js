@@ -6,10 +6,11 @@ import { CALENDAR_PALETTE } from "./palette.js";
  * @typedef {import("../../shared/contracts.js").CalendarResponse} CalendarResponse
  * @typedef {import("../../shared/contracts.js").CalendarMonth} CalendarMonth
  * @typedef {"harmonized" | "anomaly" | "raw"} View
- * @typedef {{ view?: View, julyStart?: boolean }} RenderOptions
+ * @typedef {{ view?: View, julyStart?: boolean, highlight?: { year: number, month: number } | null }} RenderOptions
+ * `highlight` is the month drawn with an outline: the one the page's verdict is about.
  * @typedef {"value" | "zero" | "no_data" | "no_history"} CellKind
  * @typedef {{ row: number, col: number, year: number, month: number, kind: CellKind,
- *   value: number | null, color: string, provisional: boolean, partial: boolean,
+ *   value: number | null, color: string, provisional: boolean, partial: boolean, highlighted: boolean,
  *   source: CalendarMonth | null }} Cell
  * @typedef {"harmonized" | "anomaly" | "modis" | "viirs"} PanelId
  * @typedef {{ id: PanelId, label: string, cells: Cell[] }} Panel
@@ -22,6 +23,7 @@ import { CALENDAR_PALETTE } from "./palette.js";
  *   aoi: CalendarResponse["aoi"], clippedFraction: number, fireSeason: number[],
  *   seasonRuns: SeasonRun[], columns: { month: number, label: string }[],
  *   rows: { year: number, label: string }[], panels: Panel[], scale: LogScale | DivergingScale | null,
+ *   highlight: { year: number, month: number } | null,
  *   counts: { months: number, provisional: number, partial: number } }} CalendarModel
  */
 
@@ -64,7 +66,7 @@ export const formatSigned = (value) => `${value > 0 ? "+" : value < 0 ? "−" : 
 export const formatRatio = (log2) => `${Number((2 ** log2).toPrecision(2))}×`;
 
 export function unitsLabel(units) {
-  return units === "modis_equivalent_hotspots" ? "MODIS-equivalent hotspots" : units;
+  return units === "modis_equivalent_hotspots" ? "fire detections" : units;
 }
 
 /** @param {number} month 1 to 12 */
@@ -260,7 +262,7 @@ function classify(source, field, view) {
  * @param {typeof CALENDAR_PALETTE} [palette]
  * @returns {CalendarModel}
  */
-export function buildCalendar(response, { view = "harmonized", julyStart = false } = {}, palette = CALENDAR_PALETTE) {
+export function buildCalendar(response, { view = "harmonized", julyStart = false, highlight = null } = {}, palette = CALENDAR_PALETTE) {
   if (!VIEWS.includes(view)) throw new RangeError(`view must be one of ${VIEWS.join(", ")}; got ${view}`);
   const months = response.months ?? [];
   const byYm = new Map(months.map((m) => [ymOf(m.year, m.month), m]));
@@ -293,6 +295,7 @@ export function buildCalendar(response, { view = "harmonized", julyStart = false
       color: palette.noData.fill,
       provisional: slot.source?.provisional === true,
       partial: slot.source?.partial_coverage === true,
+      highlighted: highlight !== null && slot.year === highlight.year && slot.month === highlight.month,
     })),
   }));
 
@@ -334,6 +337,7 @@ export function buildCalendar(response, { view = "harmonized", julyStart = false
     rows,
     panels,
     scale,
+    highlight,
     counts: {
       months: sources.filter(hasData).length,
       provisional: sources.filter((m) => m.provisional).length,

@@ -708,6 +708,8 @@ export const PAGE_PAIRS = {
     text("--accent-fg", "--accent", "pressed buttons and the chosen view"),
     text("--warning-fg", "--warning-bg", "warnings"),
     text("--error-fg", "--error-bg", "error messages"),
+    text("--hot", "--bg", "the HOT verdict"),
+    text("--not", "--bg", "the NOT verdict"),
     text("--hon-error", "--hon-surface", "box form errors", ".hon-map"),
     ui("--focus", "--bg", "focus ring"),
     ui("--focus", "--page", "focus ring on the page background"),

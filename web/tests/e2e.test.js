@@ -7,16 +7,16 @@ import { readFileSync } from "node:fs";
 import { createServer } from "node:net";
 import { after, before, describe, it } from "node:test";
 import { fileURLToPath } from "node:url";
-import { estimateCalendarHeight } from "../public/js/app.js";
+import { calendarGuide, estimateCalendarHeight } from "../public/js/app.js";
 import { contrastRatio, deltaE2000, rampColor, simulateCvd, toLab } from "../public/js/calendar/color.js";
 import { CALENDAR_PALETTE, CALENDAR_PALETTE_DARK, paletteFromStyle } from "../public/js/calendar/palette.js";
 import { buildOption } from "../public/js/calendar/option.js";
 import { buildCalendar } from "../public/js/calendar/transform.js";
-import { attachmentFilename, calendarBody, resolveRange } from "../public/js/client-api.js";
+import { attachmentFilename, calendarBody, lastRecordMonth, resolveRange } from "../public/js/client-api.js";
 import { areaSummary, snapForMap } from "../public/js/panels/area.js";
-import { currentMonthFlags, currentMonthSentence } from "../public/js/panels/current-month.js";
 import { errorMessage } from "../public/js/panels/messages.js";
-import { DEFAULT_STATE, areaPolygon, parseState } from "../public/js/url-state.js";
+import { DEFAULT_STATE, EXAMPLES, areaPolygon, parseState, serializeState } from "../public/js/url-state.js";
+import { verdict, verdictMonth } from "../public/js/verdict.js";
 import { boxToPolygon } from "../public/shared/aoi.js";
 import {
   HOTSPOT_EXPORT_COLUMNS,
@@ -176,21 +176,48 @@ describe("the page against server.js and the W02 fixture", () => {
     const overlay = snapForMap(aoi, metadata.regions);
     assert.equal(overlay.counted.length + overlay.uncovered.length, calendar.aoi.cells, "the map draws the cells the API counts");
     assert.equal(overlay.counted.length, calendar.aoi.covered_cells);
-    assert.match(areaSummary(calendar, region.name, true), /^All of Nile Delta, Egypt: 2,400 grid cells counted, [\d,]+ km²\.$/);
+    assert.match(areaSummary(calendar, region.name, true), /^Counting fires in all of Nile Delta, Egypt, about [\d,]+ km²\.$/);
 
     const width = 760;
-    const drawn = buildOption(buildCalendar(calendar, { view: "harmonized" }), { width, title: region.name }).height;
-    const reserved = estimateCalendarHeight({ view: "harmonized", julyStart: false, width, ...resolveRange(state, metadata), title: region.name });
+    const highlight = { year: 2026, month: 11 };
+    const drawn = buildOption(buildCalendar(calendar, { view: "harmonized", highlight }), { width, title: region.name }).height;
+    const reserved = estimateCalendarHeight({ view: "harmonized", julyStart: false, width, ...resolveRange(state, metadata), title: region.name, highlight });
     assert.equal(reserved, drawn, "the reserved height is the drawn height, so nothing moves when the calendar arrives");
 
     const currentResponse = await post("/api/current-month", { aoi });
     assert.equal(currentResponse.status, 200);
     const current = await currentResponse.json();
     assert.deepEqual(checkCurrentMonthResponse(current), []);
-    assert.match(
-      currentMonthSentence(current),
-      /^November 2026 so far: [\d.,a-z ]+ MODIS-equivalent hotspots?, (above|below|at) the median for the first 13 days, \d+(st|nd|rd|th) of 24\.$/,
-    );
+    assert.equal(verdictMonth(state.end, lastRecordMonth(metadata)), `${current.year}-${String(current.month).padStart(2, "0")}`);
+    const answer = verdict(current);
+    assert.ok(["HOT", "NOT", "NORMAL"].includes(answer.word ?? ""), String(answer.word));
+    assert.equal(answer.period, "November 2026 so far");
+    assert.match(answer.sentence, /^[\d.,]+ fire detections?, (the highest|the lowest|\d+(st|nd|rd|th) highest) of 24 years \(usually [\d.,a-z ]+ by now\)\.$/);
+    assert.ok(answer.notes.includes("Early numbers, may still change."));
+  });
+
+  it("opens each Try link with a calendar and a verdict for the month it ends on", async () => {
+    const latest = lastRecordMonth(metadata);
+    for (const { label, state } of EXAMPLES) {
+      const reopened = parseState(new URL(`${base}/${serializeState(state)}`).search);
+      assert.deepEqual(reopened, state, label);
+      const region = metadata.regions.find((r) => r.id === state.region);
+      const aoi = /** @type {import("../public/shared/contracts.js").Aoi} */ (areaPolygon(state.area, region));
+      const response = await post("/api/calendar", calendarBody(aoi, state, metadata));
+      assert.equal(response.status, 200, label);
+      const calendar = await response.json();
+      assert.equal(calendar.region_id, state.region, label);
+      const focus = verdictMonth(state.end, latest);
+      if (focus === latest) continue;
+      const [year, month] = focus.split("-").map(Number);
+      const summary = calendar.months.find((m) => m.year === year && m.month === month);
+      assert.ok(summary, label);
+      assert.match(verdict(summary).sentence, /^[\d.,]+ fire detections?/, label);
+      assert.doesNotMatch(verdict(summary).sentence, /by now/, label);
+    }
+    assert.equal(calendarGuide("harmonized", "2026-11", "2026-11"), "Each square is one month. Brighter means more fires. The outlined square is this month.");
+    assert.match(calendarGuide("anomaly", "2019-12", "2026-11"), /Orange means more fires than normal, blue means fewer\. The outlined square is December 2019\.$/);
+    assert.match(calendarGuide("raw", "2026-11", "2026-11"), /The outlined squares are this month\.$/);
   });
 
   it("downloads both CSVs for the default state", async () => {
@@ -246,32 +273,6 @@ describe("the page against server.js and the W02 fixture", () => {
     assert.deepEqual(paletteFromStyle(styleOf(light)), CALENDAR_PALETTE);
     assert.deepEqual(paletteFromStyle(styleOf(dark)), CALENDAR_PALETTE_DARK);
     assert.equal(paletteFromStyle(styleOf({})), CALENDAR_PALETTE, "a page without the tokens keeps the light palette");
-  });
-});
-
-describe("the current-month card", () => {
-  const rfc = { year: 2026, month: 11, days_covered: 13, value: 96.3, median: 210.5, rank: 19, of_years: 24, provisional: true, partial_coverage: true };
-
-  it("says the RFC's sentence and marks provisional and partial months", () => {
-    assert.equal(currentMonthSentence(rfc), "November 2026 so far: 96 MODIS-equivalent hotspots, below the median for the first 13 days, 19th of 24.");
-    assert.deepEqual(currentMonthFlags(rfc).map((flag) => flag.label), ["Provisional", "Partial coverage"]);
-    assert.deepEqual(currentMonthFlags({ ...rfc, provisional: false, partial_coverage: false }), []);
-  });
-
-  it("handles one day, a whole month, small values, ties and ranks 1 to 23", () => {
-    assert.equal(
-      currentMonthSentence({ ...rfc, month: 2, days_covered: 1, value: 1, median: 0.4, rank: 1, of_years: 2 }),
-      "February 2026 so far: 1 MODIS-equivalent hotspot, above the median for the first day, 1st of 2.",
-    );
-    assert.equal(
-      currentMonthSentence({ ...rfc, days_covered: 30, value: 0.04, median: 0.02, rank: 22, of_years: 23 }),
-      "November 2026: less than 0.1 MODIS-equivalent hotspots, at the median for the month, 22nd of 23.",
-    );
-    assert.equal(
-      currentMonthSentence({ ...rfc, value: 1234.4, median: 1234.2, rank: 13 }),
-      "November 2026 so far: 1,234 MODIS-equivalent hotspots, at the median for the first 13 days, 13th of 24.",
-    );
-    assert.equal(currentMonthSentence({ ...rfc, value: 0, median: 3.25, rank: 23 }).split(", ").at(-1), "23rd of 24.");
   });
 });
 

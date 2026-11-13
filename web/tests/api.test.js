@@ -207,7 +207,7 @@ describe("server.js", () => {
       assert.match(response.headers.get("content-type"), new RegExp(`^${type}`), path);
       await response.arrayBuffer();
     }
-    assert.match(await (await fetch(base)).text(), /<title>HotOrNot/);
+    assert.match(await (await fetch(base)).text(), /<title>Hot or Not/);
   });
 
   it("answers HEAD with the file size and no body", async () => {
