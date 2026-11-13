@@ -1,18 +1,20 @@
 // Map panel: region presets, polygon drawing with terra-draw, a west/south/east/north box
 // form and the snapped-cell overlay. Needs the vendored globals `maplibregl`, `terraDraw` and
 // `terraDrawMaplibreGlAdapter`, loaded with classic <script> tags before this module runs.
+import { pickRegion } from "../../shared/aoi.js";
 import { cellPolygon } from "../../shared/grid.js";
 import {
   BOX_FIELDS,
   hatchImage,
-  outsideRegionsMask,
   parseCoordinate,
   polygonBbox,
-  regionsToGeoJSON,
+  regionAt,
+  regionsBounds,
   snappedOverlay,
   validateBox,
 } from "./geometry.js";
 import { PALESTINE_POINT, labelPatches, palestineLabelLayer } from "./labels.js";
+import { EMPTY, HATCH_IMAGE, MAP_COLORS as COLORS, REGION_LABEL_LAYER, fallbackStyle, overlayLayers, overlaySources } from "./layers.js";
 
 /**
  * @typedef {import("../../shared/contracts.js").Aoi} Aoi
@@ -37,21 +39,11 @@ import { PALESTINE_POINT, labelPatches, palestineLabelLayer } from "./labels.js"
 
 export const BASEMAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
 
-// One of the three fontstacks the liberty style's glyph server provides.
-const FONT = ["Noto Sans Regular"];
-const HATCH_IMAGE = "hon-no-data-hatch";
-const EMPTY = { type: "FeatureCollection", features: [] };
-const INITIAL_BOUNDS = [[-130, -45], [160, 50]];
 const COORDINATE_DECIMALS = 6;
-
-const COLORS = {
-  counted: "#6d28d9",
-  noDataFill: "#9ca3af",
-  outside: "#4b5563",
-  ink: "#111827",
-  paper: "#ffffff",
-  region: "#1f2937",
-};
+const REGION_PADDING = 48;
+const OVERVIEW_PADDING = 24;
+// Clicks this close to a box still pick it, so the small boxes of the world view are easy to hit.
+const CLICK_SLOP_PX = 10;
 
 const FIELD_LABELS = {
   west: "West (longitude)",
@@ -70,6 +62,10 @@ const MESSAGES = {
   edited: "Area updated.",
   cancelled: "Drawing cancelled.",
   cleared: "Area cleared.",
+  hint: "Click a highlighted region to pick it.",
+  offline: "The base map is offline, so the regions are shown on a plain background. Click a highlighted region to pick it.",
+  noData: "No data here. Pick one of the four highlighted regions.",
+  overview: "Showing all four regions.",
 };
 
 let instanceCount = 0;
@@ -178,7 +174,8 @@ function buildPanel(container, regions, prefix) {
     box,
   );
 
-  const status = el("p", { class: "hon-map__status", role: "status" });
+  const status = el("p", { class: "hon-map__status", role: "status", text: MESSAGES.hint });
+  const overviewButton = el("button", { type: "button", class: "hon-map__overview", title: "Show all four regions", text: "All regions" });
   const canvas = el("div", { class: "hon-map__canvas" });
   const countedCount = el("span", { class: "hon-map__count" });
   const uncoveredCount = el("span", { class: "hon-map__count" });
@@ -195,7 +192,7 @@ function buildPanel(container, regions, prefix) {
 
   container.classList.add("hon-map");
   container.append(tools, status, canvas, legend);
-  return { presets, drawButton, clearButton, box, form, inputs, errors, status, canvas, countedCount, uncoveredCount };
+  return { presets, drawButton, clearButton, box, form, inputs, errors, status, overviewButton, canvas, countedCount, uncoveredCount };
 }
 
 /** @param {Aoi} polygon */
@@ -219,11 +216,13 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
   instanceCount += 1;
   const ui = buildPanel(container, regions, `hon-map-${instanceCount}`);
   const regionById = new Map(regions.map((region) => [region.id, region]));
+  const overview = regionsBounds(regions);
 
   const map = new maplibregl.Map({
     container: ui.canvas,
     style,
-    bounds: INITIAL_BOUNDS,
+    bounds: overview,
+    fitBoundsOptions: { padding: OVERVIEW_PADDING },
     dragRotate: false,
     pitchWithRotate: false,
     touchPitch: false,
@@ -233,6 +232,8 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
   map.touchZoomRotate.disableRotation();
   map.keyboard.disableRotation();
   map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
+  const overviewControl = el("div", { class: "maplibregl-ctrl maplibregl-ctrl-group" }, ui.overviewButton);
+  map.addControl({ onAdd: () => overviewControl, onRemove: () => overviewControl.remove() }, "top-right");
   map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-left");
 
   const { TerraDraw, TerraDrawPolygonMode, TerraDrawSelectMode, ValidateNotSelfIntersecting } = terraDraw;
@@ -282,12 +283,37 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
   let aoiId = null;
   let drawing = false;
   let snapCall = 0;
+  let ready = false;
+  let styleLoaded = false;
+  let offline = false;
+  let pointing = false;
 
   const loaded = new Promise((resolve) => map.once("load", resolve)).then(() => {
     addLayers();
     draw.start();
     draw.setMode("select");
+    ready = true;
   });
+
+  map.on("style.load", () => {
+    styleLoaded = true;
+  });
+  // An error before the style has loaded means the basemap style itself failed (offline, or the
+  // server is down). Errors after that (tiles, glyphs, sprites) leave a plain map, which is fine.
+  map.on("error", (event) => {
+    if (styleLoaded || offline) {
+      console.error(event.error);
+      return;
+    }
+    offline = true;
+    console.warn("the base map could not load, so the map uses a plain background:", event.error);
+    map.setStyle(fallbackStyle(), { diff: false });
+    announce(MESSAGES.offline);
+  });
+  map.on("load", fitMinZoom);
+  map.on("resize", fitMinZoom);
+  map.on("click", onMapClick);
+  map.on("mousemove", onMapHover);
 
   function addLayers() {
     const styleLayers = map.getStyle().layers;
@@ -295,73 +321,86 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
       map.setLayoutProperty(id, "text-field", textField);
       if (filter) map.setFilter(id, filter);
     }
-    map.addSource("hon-palestine", { type: "geojson", data: PALESTINE_POINT });
-    map.addLayer(palestineLabelLayer(styleLayers, "hon-palestine"));
+    const palestine = palestineLabelLayer(styleLayers, "hon-palestine");
+    if (palestine) {
+      map.addSource("hon-palestine", { type: "geojson", data: PALESTINE_POINT });
+      map.addLayer(palestine);
+    }
     const firstLabel = styleLayers.find((layer) => layer.type === "symbol")?.id;
     map.addImage(HATCH_IMAGE, hatchImage(), { pixelRatio: 2 });
-    map.addSource("hon-outside", { type: "geojson", data: outsideRegionsMask(regions) });
-    map.addLayer(
-      { id: "hon-outside", type: "fill", source: "hon-outside", paint: { "fill-color": COLORS.outside, "fill-opacity": 0.45 } },
-      firstLabel,
-    );
-    map.addSource("hon-regions", { type: "geojson", data: regionsToGeoJSON(regions) });
-    map.addSource("hon-counted", { type: "geojson", data: EMPTY });
-    map.addSource("hon-uncovered", { type: "geojson", data: EMPTY });
-    map.addLayer(
-      { id: "hon-counted", type: "fill", source: "hon-counted", paint: { "fill-color": COLORS.counted, "fill-opacity": 0.4 } },
-      firstLabel,
-    );
-    map.addLayer(
-      {
-        id: "hon-uncovered",
-        type: "fill",
-        source: "hon-uncovered",
-        paint: { "fill-color": COLORS.noDataFill, "fill-opacity": 0.35 },
-      },
-      firstLabel,
-    );
-    map.addLayer(
-      { id: "hon-uncovered-hatch", type: "fill", source: "hon-uncovered", paint: { "fill-pattern": HATCH_IMAGE } },
-      firstLabel,
-    );
-    map.addLayer(
-      {
-        id: "hon-region-outline",
-        type: "line",
-        source: "hon-regions",
-        filter: ["==", ["geometry-type"], "Polygon"],
-        paint: { "line-color": COLORS.region, "line-width": 2.5 },
-      },
-      firstLabel,
-    );
-    const halo = { "text-color": COLORS.ink, "text-halo-color": COLORS.paper, "text-halo-width": 1.5 };
-    map.addLayer({
-      id: "hon-uncovered-label",
-      type: "symbol",
-      source: "hon-uncovered",
-      minzoom: 6,
-      layout: { "text-field": "no data", "text-font": FONT, "text-size": 12 },
-      paint: halo,
-    });
-    map.addLayer({
-      id: "hon-region-label",
-      type: "symbol",
-      source: "hon-regions",
-      filter: ["==", ["geometry-type"], "Point"],
-      layout: {
-        "text-field": ["get", "name"],
-        "text-font": FONT,
-        "text-size": 13,
-        "text-anchor": "bottom-left",
-        "text-offset": [0.2, -0.2],
-      },
-      paint: halo,
-    });
+    for (const [id, source] of Object.entries(overlaySources(regions))) map.addSource(id, source);
+    const { underLabels, overLabels } = overlayLayers();
+    for (const layer of underLabels) map.addLayer(layer, firstLabel);
+    for (const layer of overLabels) map.addLayer(layer);
   }
 
-  const announce = (message) => {
+  /** Zooming out stops at the view that shows every region box. */
+  function fitMinZoom() {
+    const camera = map.cameraForBounds(overview, { padding: OVERVIEW_PADDING });
+    if (camera) map.setMinZoom(camera.zoom);
+  }
+
+  /**
+   * @param {string} message
+   * @param {"notice"} [tone] a notice stands out until the next message
+   */
+  function announce(message, tone) {
     ui.status.textContent = message;
-  };
+    if (tone) ui.status.setAttribute("data-tone", tone);
+    else ui.status.removeAttribute("data-tone");
+  }
+
+  function clearNotice() {
+    if (ui.status.getAttribute("data-tone") === "notice") announce(offline ? MESSAGES.offline : MESSAGES.hint);
+  }
+
+  /** @returns {RegionId | null} the region of the area on the map */
+  function currentRegionId() {
+    const feature = aoiId === null ? undefined : draw.getSnapshotFeature(aoiId);
+    if (!feature) return null;
+    const picked = pickRegion(feature.geometry, regions);
+    return picked.ok ? /** @type {RegionId} */ (picked.region.id) : null;
+  }
+
+  /**
+   * What a click at this point does: pick another region, zoom to the current one when it is
+   * small on screen, nothing inside the current one (terra-draw edits the area there), or tell
+   * the visitor there is no data.
+   * @param {{ point: { x: number, y: number }, lngLat: { lng: number, lat: number } }} event
+   * @returns {{ action: "select" | "zoom", regionId: RegionId } | { action: "none" | "outside" }}
+   */
+  function clickAction({ point, lngLat }) {
+    const [label] = map.queryRenderedFeatures([point.x, point.y], { layers: [REGION_LABEL_LAYER] });
+    // MapLibre's world is 512 px wide at zoom 0.
+    const slop = (CLICK_SLOP_PX * 360) / (512 * 2 ** map.getZoom());
+    const regionId = /** @type {RegionId | undefined} */ (label?.properties.id ?? regionAt([lngLat.lng, lngLat.lat], regions, slop)?.id);
+    if (!regionId) return { action: "outside" };
+    if (regionId !== currentRegionId()) return { action: "select", regionId };
+    const [west, south, east, north] = regionById.get(regionId).bbox;
+    const fitted = map.cameraForBounds([[west, south], [east, north]], { padding: REGION_PADDING });
+    return fitted && map.getZoom() < fitted.zoom - 1 ? { action: "zoom", regionId } : { action: "none" };
+  }
+
+  function onMapClick(event) {
+    if (!ready || drawing) return;
+    const click = clickAction(event);
+    if (click.action === "outside") announce(MESSAGES.noData, "notice");
+    else if (click.action === "select") selectRegion(click.regionId);
+    else if (click.action === "zoom") {
+      fitRegion(click.regionId);
+      announce(`Zoomed to ${regionById.get(click.regionId).name}.`);
+    }
+  }
+
+  function onMapHover(event) {
+    if (!ready || drawing) return;
+    const action = clickAction(event).action;
+    const pickable = action === "select" || action === "zoom";
+    // terra-draw sets its own cursors over the area, so only undo a pointer this code set.
+    if (pickable) map.getCanvas().style.cursor = "pointer";
+    else if (pointing) map.getCanvas().style.cursor = "";
+    pointing = pickable;
+  }
 
   /** @param {AoiSource} source */
   function emit(source) {
@@ -440,14 +479,23 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
     replaceAoi(result.id);
     if (fit) {
       const [west, south, east, north] = polygonBbox(polygon);
-      map.fitBounds([[west, south], [east, north]], { padding: 48, maxZoom: 11 });
+      map.fitBounds([[west, south], [east, north]], { padding: REGION_PADDING, maxZoom: 11 });
     }
   }
+
+  /** @param {string | number} id */
+  const outsideRegions = (id) => !pickRegion(draw.getSnapshotFeature(id).geometry, regions).ok;
 
   draw.on("finish", (id, context) => {
     if (context.mode === "polygon") {
       // terra-draw is still inside the polygon mode's close(); change modes once it returns.
       setTimeout(() => {
+        if (outsideRegions(id)) {
+          setDrawing(false);
+          draw.removeFeatures([id]);
+          announce(MESSAGES.noData, "notice");
+          return;
+        }
         replaceAoi(id);
         setDrawing(false);
         draw.selectFeature(id);
@@ -455,19 +503,27 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
         emit("draw");
       }, 0);
     } else if (context.mode === "select" && id === aoiId) {
-      announce(MESSAGES.edited);
+      if (outsideRegions(id)) announce(MESSAGES.noData, "notice");
+      else announce(MESSAGES.edited);
       emit("edit");
     }
   });
 
-  for (const button of ui.presets) {
-    button.addEventListener("click", () => {
-      const regionId = /** @type {RegionId} */ (button.dataset.region);
-      fitRegion(regionId);
-      announce(`Zoomed to ${regionById.get(regionId).name}.`);
-      onRegionSelect(regionId);
-    });
+  /** @param {RegionId} regionId */
+  function selectRegion(regionId) {
+    fitRegion(regionId);
+    announce(`Zoomed to ${regionById.get(regionId).name}.`);
+    onRegionSelect(regionId);
   }
+
+  for (const button of ui.presets) {
+    button.addEventListener("click", () => selectRegion(/** @type {RegionId} */ (button.getAttribute("data-region"))));
+  }
+
+  ui.overviewButton.addEventListener("click", () => {
+    map.fitBounds(overview, { padding: OVERVIEW_PADDING });
+    announce(MESSAGES.overview);
+  });
 
   ui.drawButton.addEventListener("click", (event) => {
     if (drawing) cancelDrawing();
@@ -525,7 +581,7 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
     const region = regionById.get(regionId);
     if (!region) throw new RangeError(`unknown region: ${regionId}`);
     const [west, south, east, north] = region.bbox;
-    map.fitBounds([[west, south], [east, north]], { padding: 32 });
+    map.fitBounds([[west, south], [east, north]], { padding: REGION_PADDING });
   }
 
   /**
@@ -561,6 +617,7 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
    */
   async function setAoi(polygon, { fit = true } = {}) {
     resetOverlay();
+    clearNotice();
     await placeAoi(polygon, fit);
   }
 

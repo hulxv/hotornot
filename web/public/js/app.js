@@ -230,6 +230,7 @@ export async function startApp(doc = document) {
     map = createMap(ui.map, {
       regions: metadata.regions,
       onAoiChange: (polygon) => polygon && changeArea(areaFromPolygon(polygon)),
+      onRegionSelect: (id) => selectPreset(id),
     });
     ui.drawArea.disabled = false;
     ui.typeCoordinates.disabled = false;
@@ -284,7 +285,8 @@ export async function startApp(doc = document) {
   });
 
   setState({});
-  showArea();
+  // The default page opens on all four regions; a link to a place opens on that place.
+  showArea({ fit: serializeState(state) !== "" });
   createStory(doc, { getState: () => state, applyState });
 
   /** The month the verdict is about and the calendar outlines, YYYY-MM. */
@@ -438,11 +440,14 @@ export async function startApp(doc = document) {
     load();
   }
 
-  /** Puts the state's area on the map (for a preset, an example or the URL), then loads it. */
-  function showArea() {
+  /**
+   * Puts the state's area on the map (for a preset, an example or the URL), then loads it.
+   * @param {{ fit?: boolean }} [options] whether the map zooms to the area
+   */
+  function showArea({ fit = true } = {}) {
     const polygon = currentPolygon();
     if (polygon) {
-      map.setAoi(polygon, { fit: true }).catch((error) => console.warn("the map could not show the area:", error));
+      map.setAoi(polygon, { fit }).catch((error) => console.warn("the map could not show the area:", error));
     }
     // setAoi clears the cell overlay, so load() has to draw it again even for the same area.
     areaKey = null;

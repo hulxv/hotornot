@@ -6,6 +6,9 @@
   --hon-control-border: var(--control-border, #8a8a8a);
   --hon-surface: var(--bg, #ffffff);
   --hon-hover: rgb(0 0 0 / 0.06);
+  /* The map stays light in both page themes (the basemap is light), so the canvas and the legend
+     swatches sit on its land color. */
+  --hon-land: #f8f4f0;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -54,8 +57,21 @@
   color: var(--muted, #5a5a5a);
 }
 
+/* The padding and border are always there, so a notice does not change the map's height. */
 .hon-map__status {
-  min-height: 1.4em;
+  align-self: flex-start;
+  min-height: calc(1.5em + 0.25rem + 2px);
+  padding: 0.125rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 0.375rem;
+  line-height: 1.5;
+}
+
+.hon-map__status[data-tone="notice"] {
+  border-color: var(--warning-border, #d9a91a);
+  background: var(--warning-bg, #fff4d6);
+  color: var(--warning-fg, #4d3900);
+  font-weight: 600;
 }
 
 .hon-map__button {
@@ -146,6 +162,16 @@
   overflow: hidden;
   border: 1px solid var(--hon-border);
   border-radius: 0.375rem;
+  background: var(--hon-land);
+}
+
+/* MapLibre's control buttons are white in both themes, so the text color is fixed. */
+.hon-map .maplibregl-ctrl-group .hon-map__overview {
+  width: auto;
+  padding: 0 0.5rem;
+  color: #1a1a1a;
+  font: 600 0.75rem/29px system-ui, sans-serif;
+  white-space: nowrap;
 }
 
 .hon-map__legend {
@@ -169,10 +195,12 @@
   width: 1rem;
   height: 1rem;
   border-radius: 2px;
+  background-color: var(--hon-land);
+  box-shadow: 0 0 0 1px var(--hon-border);
 }
 
 .hon-map__swatch--aoi {
-  border: 2px solid var(--fg, var(--hon-ink));
+  border: 2px solid var(--hon-ink);
 }
 
 .hon-map__swatch--counted {
@@ -184,11 +212,11 @@
 }
 
 .hon-map__swatch--region {
-  border: 2px solid var(--fg, #1f2937);
+  border: 2px solid #1f2937;
 }
 
 .hon-map__swatch--outside {
-  background: rgba(75, 85, 99, 0.45);
+  background: linear-gradient(rgb(75 85 99 / 0.45), rgb(75 85 99 / 0.45)), var(--hon-land);
 }
 
 .hon-map__sr-only {

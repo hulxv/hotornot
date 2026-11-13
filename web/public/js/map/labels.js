@@ -40,13 +40,14 @@ export function labelPatches(layers) {
 }
 
 /**
- * A label layer for Palestine styled like the style's smallest country labels.
+ * A label layer for Palestine styled like the style's smallest country labels, or null when the
+ * style has no country labels (the offline fallback).
  * @param {any[]} layers the style's layers
  * @param {string} sourceId a GeoJSON source holding `PALESTINE_POINT`
  */
 export function palestineLabelLayer(layers, sourceId) {
-  const countryLayers = layers.filter((layer) => layer.type === "symbol" && isCountryLayer(layer));
-  const template = countryLayers[0] ?? { layout: {}, paint: {} };
+  const template = layers.find((layer) => layer.type === "symbol" && isCountryLayer(layer));
+  if (!template) return null;
   const layer = {
     id: "hon-palestine-label",
     type: "symbol",
