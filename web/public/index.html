@@ -5,25 +5,45 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>HotOrNot · Burning calendar</title>
     <meta name="description" content="A harmonized MODIS and VIIRS burning activity calendar, from 2000 to today. Pick an area and compare this month with its history.">
-    <link rel="stylesheet" href="/vendor/maplibre-gl.css">
+    <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
+    <link rel="stylesheet" href="/vendor/maplibre-gl.css?v=5.24.1">
     <link rel="stylesheet" href="/css/base.css">
     <link rel="stylesheet" href="/js/map/map.css" data-hon-map>
     <link rel="stylesheet" href="/css/app.css">
-    <script src="/vendor/maplibre-gl.js" defer></script>
-    <script src="/vendor/terra-draw.umd.js" defer></script>
-    <script src="/vendor/terra-draw-maplibre-gl-adapter.umd.js" defer></script>
-    <script src="/vendor/echarts.min.js" defer></script>
+    <link rel="modulepreload" href="/js/app.js">
+    <link rel="modulepreload" href="/js/calendar/index.js">
+    <link rel="modulepreload" href="/js/calendar/option.js">
+    <link rel="modulepreload" href="/js/calendar/table.js">
+    <link rel="modulepreload" href="/js/calendar/transform.js">
+    <link rel="modulepreload" href="/js/calendar/palette.js">
+    <link rel="modulepreload" href="/js/calendar/color.js">
+    <link rel="modulepreload" href="/js/client-api.js">
+    <link rel="modulepreload" href="/js/url-state.js">
+    <link rel="modulepreload" href="/js/map/map.js">
+    <link rel="modulepreload" href="/js/map/geometry.js">
+    <link rel="modulepreload" href="/js/panels/area.js">
+    <link rel="modulepreload" href="/js/panels/current-month.js">
+    <link rel="modulepreload" href="/js/panels/dom.js">
+    <link rel="modulepreload" href="/js/panels/exports.js">
+    <link rel="modulepreload" href="/js/panels/messages.js">
+    <link rel="modulepreload" href="/shared/contracts.js">
+    <link rel="modulepreload" href="/shared/grid.js">
+    <link rel="modulepreload" href="/shared/aoi.js">
     <script type="module">
       import { startApp } from "/js/app.js";
       startApp();
     </script>
+    <script src="/vendor/maplibre-gl.js?v=5.24.1" defer></script>
+    <script src="/vendor/terra-draw.umd.js?v=1.39.0" defer></script>
+    <script src="/vendor/terra-draw-maplibre-gl-adapter.umd.js?v=1.5.0" defer></script>
+    <script src="/vendor/echarts.min.js?v=6.1.0" defer></script>
   </head>
   <body>
     <a class="skip-link" href="#calendar-section">Skip to the calendar</a>
     <header class="app-header">
       <div class="app-header__inner">
         <div class="brand">
-          <a class="brand__name" href="/">HotOrNot</a>
+          <h1 class="brand__name">HotOrNot</h1>
           <p class="brand__tagline">Burning activity since 2000, MODIS and VIIRS on one scale</p>
         </div>
         <nav class="app-nav" aria-label="Pages">
@@ -95,6 +115,10 @@
           <div class="calendar-skeleton" aria-hidden="true"></div>
           <p class="calendar-status" id="calendar-status" role="status"></p>
         </div>
+        <details class="calendar-numbers" id="calendar-numbers">
+          <summary>Numbers behind this calendar</summary>
+          <div id="calendar-table"><p class="muted">The table appears with the calendar.</p></div>
+        </details>
       </section>
     </main>
 

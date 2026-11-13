@@ -50,6 +50,29 @@ export function markColor(fill, dark = "#000000", light = "#ffffff") {
   return contrastRatio(fill, dark) >= contrastRatio(fill, light) ? dark : light;
 }
 
+// Above this luminance black contrasts more than white: sqrt(1.05 * 0.05) - 0.05.
+const MID_LUMINANCE = 0.179;
+
+/**
+ * The outline for a fill too close to the background to stand out on its own (WCAG 1.4.11):
+ * the fill mixed toward black on a light background, or toward white on a dark one, just far
+ * enough to reach `min` against the background. Null when the fill reaches it already.
+ * @param {string} fill
+ * @param {string} background
+ * @param {number} [min]
+ * @returns {string | null}
+ */
+export function edgeColor(fill, background, min = 3) {
+  if (contrastRatio(fill, background) >= min) return null;
+  const toward = relativeLuminance(background) > MID_LUMINANCE ? 0 : 1;
+  const rgb = parseHex(fill);
+  for (let step = 1; step <= 50; step += 1) {
+    const mixed = toHex(/** @type {Rgb} */ (rgb.map((c) => c + (toward - c) * (step / 50))));
+    if (contrastRatio(mixed, background) >= min) return mixed;
+  }
+  return toward === 0 ? "#000000" : "#ffffff";
+}
+
 /**
  * Machado, Oliveira and Fernandes (2009), severity 1.0, applied to linear RGB.
  * @type {Readonly<Record<CvdKind, number[][]>>}

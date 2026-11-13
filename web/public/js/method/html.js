@@ -63,9 +63,11 @@ export function lineLegendItems(series) {
 /**
  * A chart's frame: title, the container ECharts draws into, and a collapsed table of its
  * numbers that the page fills when opened. Without a chart, the placeholder text instead.
- * @param {{ id: string, title: string, height: number, placeholder?: string | null }} card
+ * `context` tells screen-reader users which chart a numbers table belongs to when titles repeat
+ * across sections.
+ * @param {{ id: string, title: string, height: number, placeholder?: string | null, context?: string }} card
  */
-export function chartCardHtml({ id, title, height, placeholder = null }) {
+export function chartCardHtml({ id, title, height, placeholder = null, context = "" }) {
   const head = `<figcaption class="chart-title">${escapeHtml(title)}</figcaption>`;
   if (placeholder) {
     return `<figure class="chart-card surface">${head}<p class="chart-empty" style="min-height:${height}px">${escapeHtml(placeholder)}</p></figure>`;
@@ -74,7 +76,7 @@ export function chartCardHtml({ id, title, height, placeholder = null }) {
   return (
     `<figure class="chart-card surface">${head}` +
     `<div class="chart" id="chart-${safe}" style="height:${height}px"><p class="chart-empty">Drawing the chart…</p></div>` +
-    `<details class="numbers" id="numbers-${safe}"><summary>Numbers behind this chart</summary>` +
+    `<details class="numbers" id="numbers-${safe}"><summary>Numbers behind this chart${hidden(`: ${title}${context ? `, ${context}` : ""}`)}</summary>` +
     `<div class="numbers-body" id="numbers-body-${safe}"></div></details>` +
     `</figure>`
   );

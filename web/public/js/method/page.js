@@ -111,7 +111,13 @@ export function renderMethodPage(body, doc = document) {
     "seam-charts",
     view.seams
       .map((seam) =>
-        chartCardHtml({ id: `seam-${seam.regionId}`, title: seam.name, height: CHART_HEIGHT.seam, placeholder: seam.model ? null : noValidation }),
+        chartCardHtml({
+          id: `seam-${seam.regionId}`,
+          title: seam.name,
+          height: CHART_HEIGHT.seam,
+          placeholder: seam.model ? null : noValidation,
+          context: "the 2012 seam",
+        }),
       )
       .join(""),
   );
@@ -171,7 +177,13 @@ export function renderMethodPage(body, doc = document) {
     "n20-charts",
     view.n20
       .map((item) =>
-        chartCardHtml({ id: `n20-${item.regionId}`, title: item.name, height: CHART_HEIGHT.n20, placeholder: item.model ? null : noValidation }),
+        chartCardHtml({
+          id: `n20-${item.regionId}`,
+          title: item.name,
+          height: CHART_HEIGHT.n20,
+          placeholder: item.model ? null : noValidation,
+          context: "NOAA-20 against S-NPP",
+        }),
       )
       .join(""),
   );
@@ -190,18 +202,34 @@ export function renderMethodPage(body, doc = document) {
   return { view, charts: [...mounted.values()] };
 }
 
-/** Fetches /api/method and draws the page, or explains what failed. @param {Document} [doc] */
+/**
+ * Resolves once the window's load event has passed, so the DOM is parsed and ECharts has run.
+ * @param {Document} doc
+ */
+const pageLoaded = (doc) =>
+  !doc.readyState || doc.readyState === "complete"
+    ? Promise.resolve()
+    : new Promise((resolve) => doc.defaultView?.addEventListener("load", resolve, { once: true }));
+
+/**
+ * Fetches /api/method and draws the page, or explains what failed. method.html runs this module
+ * before its defer script, so the request overlaps the ECharts download.
+ * @param {Document} [doc]
+ */
 export async function startMethodPage(doc = document) {
   try {
     const response = await fetch("/api/method", { headers: { accept: "application/json" } });
     if (!response.ok) throw new Error(`the server answered ${response.status}`);
-    renderMethodPage(await response.json(), doc);
+    const body = await response.json();
+    await pageLoaded(doc);
+    renderMethodPage(body, doc);
   } catch (error) {
+    await pageLoaded(doc);
     const status = doc.getElementById("method-status");
     if (status) {
-      status.innerHTML = `<p class="notice">Could not load the validation results (${escapeHtml(error.message)}). The text still describes the method.</p>`;
+      status.innerHTML = `<p class="notice">The validation results did not load (${escapeHtml(error.message)}). Reload the page to try again; the text below still describes the method.</p>`;
     }
-    for (const element of doc.querySelectorAll("[data-loading]")) element.textContent = "Not available.";
+    for (const element of doc.querySelectorAll("[data-loading]")) element.textContent = "Not available: the results did not load.";
     console.error(error);
   }
 }

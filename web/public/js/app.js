@@ -1,5 +1,6 @@
 import { createCalendar } from "./calendar/index.js";
 import { buildOption } from "./calendar/option.js";
+import { calendarTable, calendarTableHtml } from "./calendar/table.js";
 import { buildCalendar } from "./calendar/transform.js";
 import { ApiError, RECORD_START_MONTH, calendarBody, getMetadata, lastRecordMonth, postCalendar, postCurrentMonth, resolveRange } from "./client-api.js";
 import { createMap } from "./map/map.js";
@@ -97,11 +98,33 @@ const NO_MAP = {
 };
 
 /**
+ * Resolves once the window's load event has passed, so the DOM is parsed and the vendored defer
+ * scripts have run or failed.
+ * @param {Document} doc
+ */
+const pageLoaded = (doc) =>
+  !doc.readyState || doc.readyState === "complete"
+    ? Promise.resolve()
+    : new Promise((resolve) => doc.defaultView?.addEventListener("load", resolve, { once: true }));
+
+/**
  * Starts the page: reads the URL, loads metadata, builds the map, calendar and side panel, and
- * keeps them and the URL in step.
+ * keeps them and the URL in step. index.html runs this module before its defer scripts, so the
+ * metadata, calendar and current-month requests for the URL's state go out while the vendored
+ * libraries are still downloading; the page is built once they have run.
  * @param {Document} [doc]
  */
 export async function startApp(doc = document) {
+  /** @type {AppState} */
+  let state = parseState(location.search);
+  /** @type {PromiseCache<{ body: CalendarResponse, mock: boolean }>} */
+  const calendars = new PromiseCache();
+  /** @type {PromiseCache<{ body: CurrentMonthResponse, mock: boolean }>} */
+  const currentMonths = new PromiseCache();
+  const metadataLoad = getMetadata();
+  metadataLoad.then(({ body }) => prefetch(body), () => {});
+  await pageLoaded(doc);
+
   const $ = (id) => /** @type {HTMLElement} */ (doc.getElementById(id));
   const ui = {
     presets: $("region-presets"),
@@ -118,12 +141,12 @@ export async function startApp(doc = document) {
     calendar: $("calendar"),
     calendarSection: $("calendar-section"),
     calendarStatus: $("calendar-status"),
+    numbers: /** @type {HTMLDetailsElement} */ ($("calendar-numbers")),
+    table: $("calendar-table"),
     attribution: $("attribution"),
     dataInfo: $("data-info"),
   };
 
-  /** @type {AppState} */
-  let state = parseState(location.search);
   /** @type {Metadata} */
   let metadata;
   let mock = false;
@@ -133,16 +156,12 @@ export async function startApp(doc = document) {
   /** JSON of the polygon the map overlay and area panel describe, and of the one the card shows. */
   let areaKey = null;
   let monthKey = null;
-  /** @type {PromiseCache<{ body: CalendarResponse, mock: boolean }>} */
-  const calendars = new PromiseCache();
-  /** @type {PromiseCache<{ body: CurrentMonthResponse, mock: boolean }>} */
-  const currentMonths = new PromiseCache();
 
   renderArea(ui.area, { status: "loading" });
   renderCurrentMonth(ui.currentMonth, { status: "loading" });
 
   try {
-    const result = await getMetadata();
+    const result = await metadataLoad;
     metadata = result.body;
     noteMock(result.mock);
   } catch (error) {
@@ -209,9 +228,23 @@ export async function startApp(doc = document) {
   });
   ui.from.addEventListener("change", () => changeRange("from"));
   ui.to.addEventListener("change", () => changeRange("to"));
+  ui.numbers.addEventListener("toggle", () => fillTable());
 
   setState({});
   showArea({ fit: true });
+
+  /**
+   * Asks for the calendar and current month of the URL's area into the caches, with the exact
+   * requests load() makes, so load() finds them already on their way.
+   * @param {Metadata} meta
+   */
+  function prefetch(meta) {
+    const polygon = areaPolygon(state.area, meta.regions.find((region) => region.id === state.region));
+    if (!polygon) return;
+    const request = calendarBody(polygon, state, meta);
+    calendars.get(JSON.stringify(request), () => postCalendar(request)).catch(() => {});
+    currentMonths.get(JSON.stringify(polygon), () => postCurrentMonth(polygon)).catch(() => {});
+  }
 
   /** Applies a change, reflects it in the controls and rewrites the URL in its canonical form. */
   function setState(patch) {
@@ -304,6 +337,7 @@ export async function startApp(doc = document) {
     renderArea(ui.area, { status: "empty", text: "No area. Pick a region above, draw an area on the map, or type a box." });
     renderCurrentMonth(ui.currentMonth, { status: "empty", text: "Pick an area to compare this month with its history." });
     setCalendarState("empty", "Pick a region or draw an area to see its calendar.");
+    fillTable();
   }
 
   /** Puts the state's area on the map (for a preset or a URL), then loads it. */
@@ -352,11 +386,25 @@ export async function startApp(doc = document) {
   function drawCalendar() {
     if (!shown) return;
     doc.title = `HotOrNot · ${regionName(shown.response.region_id)}`;
+    fillTable();
     if (!calendar) {
-      setCalendarState("empty", "The calendar could not be drawn because the chart library did not load. The CSV downloads still work.");
+      setCalendarState(
+        "empty",
+        "The calendar could not be drawn because the chart library did not load. Its numbers are in the table below, and the downloads still work.",
+      );
       return;
     }
     calendar.render(shown.response, { view: state.view, julyStart: state.julyStart, title: regionName(shown.response.region_id) });
+  }
+
+  /** The calendar as a table, the keyboard and screen-reader route to what its tooltips say. Built only while open. */
+  function fillTable() {
+    if (!ui.numbers.open) return;
+    if (!shown) {
+      ui.table.replaceChildren(h("p", { class: "muted", text: "No calendar to show." }));
+      return;
+    }
+    ui.table.innerHTML = calendarTableHtml(calendarTable(shown.response, { view: state.view, title: regionName(shown.response.region_id) }));
   }
 
   function calendarPng() {
@@ -439,7 +487,8 @@ export async function startApp(doc = document) {
     exportsPanel.setReady(false);
     renderArea(ui.area, { status: "error", message, onRegion: (id) => selectPreset(id, { fit: true }) });
     renderCurrentMonth(ui.currentMonth, { status: "empty", text: "No comparison for this area." });
-    setCalendarState("empty", `No calendar: ${message.title}`);
+    setCalendarState("empty", `${message.title} No calendar to show.`);
+    fillTable();
   }
 
   /** @param {boolean} isMock */

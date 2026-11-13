@@ -255,7 +255,7 @@ describe("served over HTTP", () => {
     const page = await fetchPath("/method.html");
     assert.equal(page.status, 200);
     assert.match(page.headers["content-type"], /text\/html/);
-    const assets = [...page.body.matchAll(/(?:src|href)="(\/(?:js|css|vendor)\/[^"]+)"/g)].map((m) => m[1]);
+    const assets = [...page.body.matchAll(/(?:src|href)="(\/(?:js|css|vendor)\/[^"?]+)[^"]*"/g)].map((m) => m[1]);
     const imports = [...page.body.matchAll(/from "(\/js\/[^"]+)"/g)].map((m) => m[1]);
     assert.ok(assets.includes("/vendor/echarts.min.js"));
     assert.ok(imports.includes("/js/method/page.js"));
