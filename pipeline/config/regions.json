@@ -1,0 +1,56 @@
+{
+  "buffer_deg": 0.5,
+  "regions": [
+    {
+      "id": "nile_delta",
+      "name": "Nile Delta, Egypt",
+      "bbox": [29.5, 29.8, 32.5, 31.8],
+      "history": "country_files",
+      "countries": ["Egypt"],
+      "excluded_countries": []
+    },
+    {
+      "id": "california",
+      "name": "California and Nevada",
+      "bbox": [-124.5, 32.5, -114.0, 42.0],
+      "history": "api",
+      "countries": [],
+      "excluded_countries": []
+    },
+    {
+      "id": "se_australia",
+      "name": "Southeastern Australia",
+      "bbox": [140.0, -39.0, 154.0, -28.0],
+      "history": "api",
+      "countries": [],
+      "excluded_countries": []
+    },
+    {
+      "id": "n_argentina",
+      "name": "Northern Argentina and Paraguayan Chaco",
+      "bbox": [-66.0, -35.0, -57.0, -22.0],
+      "history": "country_files",
+      "countries": ["Argentina", "Paraguay", "Uruguay"],
+      "excluded_countries": ["Bolivia", "Brazil"]
+    }
+  ],
+  "firms_country": {
+    "modis": [2000, 2025],
+    "viirs-snpp": [2012, 2025],
+    "viirs-jpss1": [2018, 2025]
+  },
+  "firms_api": {
+    "MODIS": {"sp": "MODIS_SP", "nrt": "MODIS_NRT", "start": "2000-11-01", "end": null},
+    "S-NPP": {"sp": "VIIRS_SNPP_SP", "nrt": "VIIRS_SNPP_NRT", "start": "2012-01-20", "end": "2026-11-01"},
+    "NOAA-20": {"sp": "VIIRS_NOAA20_SP", "nrt": "VIIRS_NOAA20_NRT", "start": "2018-04-01", "end": null}
+  },
+  "firms_7d": {
+    "modis": "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/csv/MODIS_C6_1_Global_7d.csv",
+    "viirs-jpss1": "https://firms.modaps.eosdis.nasa.gov/data/active_fire/noaa-20-viirs-c2/csv/J1_VIIRS_C2_Global_7d.csv"
+  },
+  "cmr": [
+    {"short_name": "MYD14", "concept_id": "C2278858993-LPCLOUD", "start": "2012-01-01", "end": "2019-12-31"},
+    {"short_name": "VNP14IMG", "concept_id": "C2734202914-LPCLOUD", "start": "2012-01-19", "end": "2026-11-02"},
+    {"short_name": "VJ114IMG", "concept_id": "C2734197957-LPCLOUD", "start": "2018-01-01", "end": null}
+  ]
+}
