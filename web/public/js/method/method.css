@@ -1,0 +1,460 @@
+:root {
+  --border: #d4d4d4;
+  --panel: #f5f5f5;
+  --notice-bg: #fff4e0;
+  --notice-edge: #b35806;
+  --pass: #1a1a1a;
+  --fail: #b3261e;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --border: #3d3d3d;
+    --panel: #1c1c1c;
+    --notice-bg: #2a2116;
+    --notice-edge: #fdb863;
+    --pass: #ededed;
+    --fail: #ff9b8f;
+  }
+}
+
+/* Charts keep a white background in both themes, like the calendar, so the surface resets the
+   page tokens to their light values for everything inside it. */
+.surface {
+  --fg: #1a1a1a;
+  --muted: #555555;
+  --link: #1d4ed8;
+  --border: #d4d4d4;
+  --panel: #f5f5f5;
+  --pass: #1a1a1a;
+  --fail: #b3261e;
+  background: #ffffff;
+  color: var(--fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.skip-link {
+  position: absolute;
+  left: 0.5rem;
+  top: -3rem;
+  padding: 0.5rem 0.75rem;
+  background: var(--bg);
+  color: var(--link);
+  z-index: 10;
+}
+
+.skip-link:focus {
+  top: 0.5rem;
+}
+
+:focus-visible {
+  outline: 3px solid var(--link);
+  outline-offset: 2px;
+}
+
+.site-header,
+.site-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  align-items: baseline;
+  justify-content: space-between;
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.site-header {
+  border-bottom: 1px solid var(--border);
+}
+
+.site-footer {
+  border-top: 1px solid var(--border);
+  font-size: 0.875rem;
+}
+
+.brand {
+  font-weight: 700;
+  color: var(--fg);
+  text-decoration: none;
+}
+
+main.method {
+  max-width: 72rem;
+  padding: 2rem 1rem 3rem;
+}
+
+main.method h1 {
+  font-size: clamp(1.6rem, 4vw, 2.2rem);
+  line-height: 1.2;
+  max-width: 44rem;
+  margin: 0 0 0.75rem;
+}
+
+main.method h2 {
+  font-size: 1.35rem;
+  line-height: 1.3;
+  margin: 3rem 0 0.5rem;
+  scroll-margin-top: 1rem;
+}
+
+.lede,
+.prose,
+.toc,
+#method-status {
+  max-width: 44rem;
+}
+
+.lede {
+  font-size: 1.125rem;
+}
+
+.toc ol {
+  margin: 1.5rem 0 0;
+  padding-left: 1.25rem;
+  columns: 2 16rem;
+}
+
+.terms dt {
+  font-weight: 600;
+  margin-top: 0.75rem;
+}
+
+.terms dd {
+  margin: 0.25rem 0 0 1.25rem;
+}
+
+.timeline li,
+.caveats li {
+  margin-bottom: 0.5rem;
+}
+
+.notice {
+  background: var(--notice-bg);
+  border-left: 4px solid var(--notice-edge);
+  padding: 0.6rem 0.9rem;
+  margin: 1rem 0;
+}
+
+.badge {
+  display: inline-block;
+  margin: 0 0 0.5rem;
+  padding: 0.1rem 0.6rem;
+  border: 1px solid var(--notice-edge);
+  border-radius: 999px;
+  background: var(--notice-bg);
+  font-size: 0.8125rem;
+  font-weight: 600;
+}
+
+.badge[hidden],
+[data-method][hidden] {
+  display: none;
+}
+
+.chart-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1rem;
+  align-items: baseline;
+  margin: 1rem 0 0.5rem;
+}
+
+.chart-controls label {
+  font-weight: 600;
+}
+
+.chart-controls input {
+  width: 1.1rem;
+  height: 1.1rem;
+  vertical-align: -0.15rem;
+  accent-color: var(--link);
+}
+
+.legend-bar {
+  padding: 0.5rem 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+.legend-bar:empty {
+  display: none;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem 1.25rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+}
+
+.legend li {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.legend li.off {
+  text-decoration: line-through;
+}
+
+.legend li.off svg {
+  opacity: 0.35;
+}
+
+#detection > .legend {
+  margin-bottom: 0.5rem;
+}
+
+.chart-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 28rem), 1fr));
+  gap: 1rem;
+}
+
+.chart-grid[data-loading]:empty {
+  min-height: 300px;
+}
+
+.chart-card {
+  margin: 0;
+  padding: 0.75rem 0.75rem 0.5rem;
+  min-width: 0;
+}
+
+.chart-title {
+  font-weight: 600;
+  margin-bottom: 0.25rem;
+}
+
+.chart {
+  width: 100%;
+}
+
+.chart-empty {
+  margin: 0;
+  padding: 1rem 0;
+  color: var(--muted);
+}
+
+.numbers summary {
+  cursor: pointer;
+  color: var(--link);
+  font-size: 0.875rem;
+  padding: 0.25rem 0;
+}
+
+.numbers-body {
+  font-size: 0.875rem;
+}
+
+.numbers-body .table-wrap {
+  max-height: 24rem;
+  overflow-y: auto;
+}
+
+.table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+table.data {
+  border-collapse: collapse;
+  font-variant-numeric: tabular-nums;
+  margin: 0.5rem 0 1rem;
+  font-size: 0.9375rem;
+}
+
+table.data caption {
+  text-align: left;
+  padding-bottom: 0.4rem;
+  max-width: 44rem;
+}
+
+table.data th,
+table.data td {
+  padding: 0.3rem 0.6rem;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+  vertical-align: top;
+}
+
+table.data thead th {
+  font-weight: 600;
+  border-bottom-width: 2px;
+}
+
+table.data th[scope="row"] {
+  font-weight: 500;
+}
+
+table.data .num {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.scores td.pass {
+  color: var(--pass);
+  font-weight: 600;
+}
+
+.scores td.fail {
+  color: var(--fail);
+}
+
+.scores .mark {
+  display: inline-block;
+  width: 1.1em;
+  margin-left: 0.2em;
+  text-align: center;
+}
+
+.decision {
+  max-width: 44rem;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 0.75rem 1rem;
+  margin: 1rem 0;
+}
+
+.decision p {
+  margin: 0.25rem 0;
+}
+
+.decision-head {
+  font-size: 1.125rem;
+}
+
+.decision .rule {
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+#k-table {
+  padding: 0.75rem;
+}
+
+.k-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  align-items: center;
+  font-size: 0.875rem;
+  margin-bottom: 0.5rem;
+}
+
+.k-scale {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.k-ramp {
+  display: inline-block;
+  width: 10rem;
+  height: 0.75rem;
+}
+
+.k-key {
+  display: inline-flex;
+  gap: 0.4rem;
+  align-items: center;
+}
+
+.k-sample {
+  display: inline-block;
+  width: 1.6rem;
+  height: 1.2rem;
+  background: #ffffff;
+  color: #1a1a1a;
+  border: 1px solid var(--border);
+}
+
+.k-table {
+  border-collapse: separate;
+  border-spacing: 2px;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.8125rem;
+}
+
+.k-table caption {
+  text-align: left;
+  font-weight: 600;
+  padding-bottom: 0.25rem;
+}
+
+.k-table th {
+  font-weight: 500;
+  text-align: left;
+  padding: 0.2rem 0.4rem;
+  white-space: nowrap;
+}
+
+.k-table thead th {
+  text-align: center;
+}
+
+.k-table abbr {
+  text-decoration: none;
+}
+
+.k-table td {
+  min-width: 2.75rem;
+  padding: 0.35rem 0.3rem;
+  text-align: center;
+}
+
+.k-table td.k-empty {
+  color: var(--muted);
+  border: 1px solid var(--border);
+}
+
+.k-region {
+  max-width: 11rem;
+  white-space: normal;
+}
+
+.level-pooled_3month {
+  outline: 2px dotted currentColor;
+  outline-offset: -4px;
+}
+
+.level-region_year {
+  outline: 2px dashed currentColor;
+  outline-offset: -4px;
+}
+
+.summary {
+  max-width: 44rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+  margin-bottom: 0;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (max-width: 40rem) {
+  main.method {
+    padding-top: 1.25rem;
+  }
+
+  .k-table td {
+    min-width: 2.4rem;
+    padding: 0.3rem 0.15rem;
+  }
+}
