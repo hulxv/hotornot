@@ -56,7 +56,7 @@ async function expectError(response, status, code) {
 
 describe("GET /api/metadata", () => {
   it("returns the metadata mock", async () => {
-    const body = await expectOk(getMetadata(), checkMetadata);
+    const body = await expectOk(await getMetadata(), checkMetadata);
     assert.deepEqual(
       body.regions.map((region) => region.id),
       [...REGION_IDS],
