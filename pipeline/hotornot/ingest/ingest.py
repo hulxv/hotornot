@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """Download HotOrNot source data into SQLite.
 
-    python3 -I ingest.py plan | firms | firms7d | cmr | boundaries | summary
-    options: --db PATH --workers N --sources modis,viirs-snpp --countries Egypt --refresh --by-year
+    python3 -I ingest.py plan | firms | firms7d | api | cmr | boundaries | summary
+    options: --db PATH --workers N --sources modis,viirs-snpp --countries Egypt --regions nile_delta
+             --refresh --by-year
 """
 import argparse
+import collections
 import csv
 import datetime as dt
 import io
@@ -12,6 +14,7 @@ import json
 import os
 import sqlite3
 import sys
+import threading
 import time
 import urllib.error
 import urllib.parse
@@ -27,8 +30,14 @@ FIRMS_COUNTRY_URL = "https://firms.modaps.eosdis.nasa.gov/data/country/{s}/{y}/{
 CMR_GRANULES_URL = "https://cmr.earthdata.nasa.gov/search/granules.json"
 BOUNDARIES_URL = ("https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/"
                   "geojson/ne_50m_admin_0_countries.geojson")
+FIRMS_API = "https://firms.modaps.eosdis.nasa.gov"
+ENV_PATH = os.path.join(PIPELINE, ".env")
 MODIS_SATELLITE = {"Terra": "Terra", "T": "Terra", "Aqua": "Aqua", "A": "Aqua"}
 VIIRS_SATELLITE = {"viirs-snpp": "S-NPP", "viirs-jpss1": "NOAA-20"}
+API_SATELLITE_SOURCE = {"MODIS": "modis", "S-NPP": "viirs-snpp", "NOAA-20": "viirs-jpss1"}
+TRANSACTIONS_PER_DAY = 2
+TRANSACTION_BUDGET = 4500
+TRANSACTION_WINDOW_S = 600
 
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS raw_files (
@@ -170,7 +179,10 @@ def stream_firms(url, source, regions):
             counter = CountingReader(resp)
             text = io.TextIOWrapper(io.BufferedReader(counter, 1 << 20), encoding="utf-8", newline="")
             reader = csv.reader(text)
-            c = {name: i for i, name in enumerate(next(reader))}
+            header = next(reader, [])
+            if "latitude" not in header:
+                raise IOError("unexpected response: %s" % ",".join(header)[:120])
+            c = {name: i for i, name in enumerate(header)}
             i_lat, i_lon = c["latitude"], c["longitude"]
             i_mir = c.get("brightness", c.get("bright_ti4"))
             i_tir = c.get("bright_t31", c.get("bright_ti5"))
@@ -327,6 +339,116 @@ def cmd_firms7d(cfg, args):
     run_downloads(con, jobs, args.workers)
 
 
+def load_map_key():
+    key = os.environ.get("FIRMS_MAP_KEY")
+    if not key and os.path.exists(ENV_PATH):
+        with open(ENV_PATH) as f:
+            for line in f:
+                if line.startswith("FIRMS_MAP_KEY="):
+                    key = line.split("=", 1)[1].strip()
+    if not key:
+        sys.exit("FIRMS_MAP_KEY missing: set it in the environment or %s" % ENV_PATH)
+    return key
+
+
+def api_status(key):
+    with open_url("%s/mapserver/mapkey_status/?MAP_KEY=%s" % (FIRMS_API, key), timeout=60) as resp:
+        return json.load(resp)
+
+
+def api_availability(key):
+    with open_url("%s/api/data_availability/csv/%s/ALL" % (FIRMS_API, key), timeout=60) as resp:
+        rows = csv.DictReader(io.TextIOWrapper(resp, encoding="utf-8"))
+        return {r["data_id"]: (dt.date.fromisoformat(r["min_date"]), dt.date.fromisoformat(r["max_date"]))
+                for r in rows}
+
+
+class TransactionBudget:
+    def __init__(self, already_used):
+        self.lock = threading.Lock()
+        self.spent = collections.deque([(time.time(), already_used)])
+
+    def acquire(self, cost):
+        while True:
+            with self.lock:
+                now = time.time()
+                while self.spent and now - self.spent[0][0] > TRANSACTION_WINDOW_S:
+                    self.spent.popleft()
+                if sum(c for _, c in self.spent) + cost <= TRANSACTION_BUDGET:
+                    self.spent.append((now, cost))
+                    return
+                wait = TRANSACTION_WINDOW_S - (now - self.spent[0][0]) + 1
+            time.sleep(min(max(wait, 1), 30))
+
+
+def api_windows(cfg, args, availability, today):
+    wanted_regions = set(args.regions.split(",")) if args.regions else None
+    wanted_sats = set(args.sources.split(",")) if args.sources else None
+    out = []
+    for reg in cfg["regions"]:
+        if wanted_regions and reg["id"] not in wanted_regions:
+            continue
+        for sat, spec in cfg["firms_api"].items():
+            if wanted_sats and sat not in wanted_sats:
+                continue
+            start = dt.date.fromisoformat(spec["start"])
+            end = min(dt.date.fromisoformat(spec["end"]), today) if spec["end"] else today
+            if reg["history"] == "country_files":
+                start = max(start, dt.date(cfg["firms_country"]["modis"][1] + 1, 1, 1))
+            sp_end = availability[spec["sp"]][1]
+            day = start
+            while day <= end:
+                product, limit = (spec["sp"], min(sp_end, end)) if day <= sp_end else (spec["nrt"], end)
+                days = min(5, (limit - day).days + 1)
+                out.append((reg, sat, product, day, days))
+                day += dt.timedelta(days=days)
+    return out
+
+
+def cmd_api(cfg, args):
+    key = load_map_key()
+    con = connect(args.db)
+    today = dt.datetime.now(dt.timezone.utc).date()
+    availability = api_availability(key)
+    jobs = []
+    for reg, sat, product, day, days in api_windows(cfg, args, availability, today):
+        file_key = "api:%s:%s:%s:%d" % (product, reg["id"], day.isoformat(), days)
+        public_url = "%s/api/area/csv/<MAP_KEY>/%s/%s/%d/%s" % (
+            FIRMS_API, product, ",".join(str(v) for v in reg["buffered"]), days, day.isoformat())
+        fid, status = register_file(con, file_key, "api", API_SATELLITE_SOURCE[sat], None, day.year, public_url)
+        if status in ("done", "missing") and not args.refresh:
+            continue
+        jobs.append((fid, reg, sat, product, day, days, public_url.replace("<MAP_KEY>", key)))
+    con.commit()
+    cost = sum(j[5] for j in jobs) * TRANSACTIONS_PER_DAY
+    log("%d API windows to fetch, about %d transactions (~%.0f min at the limit)" % (
+        len(jobs), cost, cost / TRANSACTION_BUDGET * TRANSACTION_WINDOW_S / 60))
+    budget = TransactionBudget(api_status(key).get("current_transactions", 0))
+
+    def fetch(job):
+        _, reg, sat, _, _, days, url = job
+        budget.acquire(days * TRANSACTIONS_PER_DAY)
+        return stream_firms(url, API_SATELLITE_SOURCE[sat], [reg])
+
+    done, kept, errors, t0 = 0, 0, 0, time.time()
+    with ThreadPoolExecutor(max_workers=args.workers) as pool:
+        futures = {pool.submit(fetch, j): j for j in jobs}
+        for fut in as_completed(futures):
+            fid, reg, sat, product, day, days, _ = futures[fut]
+            done += 1
+            try:
+                res = fut.result()
+                store_result(con, fid, res)
+                kept += len(res["rows"]) if res else 0
+            except Exception as e:
+                errors += 1
+                store_result(con, fid, None, error=str(e))
+                log("ERROR %s %s %s: %s" % (product, reg["id"], day, e))
+            if done % 50 == 0 or done == len(jobs):
+                log("%d/%d windows, %s rows kept, %d errors, %.1f min" % (
+                    done, len(jobs), format(kept, ","), errors, (time.time() - t0) / 60))
+
+
 def cmr_footprint(entry):
     polygons = []
     for poly in entry.get("polygons") or []:
@@ -446,8 +568,8 @@ def cmd_summary(cfg, args):
     print("database: %s (%.2f GB)" % (args.db, size))
 
 
-COMMANDS = {"plan": cmd_plan, "firms": cmd_firms, "firms7d": cmd_firms7d, "cmr": cmd_cmr,
-            "boundaries": cmd_boundaries, "summary": cmd_summary}
+COMMANDS = {"plan": cmd_plan, "firms": cmd_firms, "firms7d": cmd_firms7d, "api": cmd_api,
+            "cmr": cmd_cmr, "boundaries": cmd_boundaries, "summary": cmd_summary}
 
 
 def main():
@@ -457,6 +579,7 @@ def main():
     p.add_argument("--workers", type=int, default=4)
     p.add_argument("--sources")
     p.add_argument("--countries")
+    p.add_argument("--regions")
     p.add_argument("--refresh", action="store_true")
     p.add_argument("--by-year", action="store_true")
     args = p.parse_args()

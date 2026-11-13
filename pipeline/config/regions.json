@@ -42,7 +42,7 @@
   "firms_api": {
     "MODIS": {"sp": "MODIS_SP", "nrt": "MODIS_NRT", "start": "2000-11-01", "end": null},
     "S-NPP": {"sp": "VIIRS_SNPP_SP", "nrt": "VIIRS_SNPP_NRT", "start": "2012-01-20", "end": "2026-11-01"},
-    "NOAA-20": {"sp": "VIIRS_NOAA20_SP", "nrt": "VIIRS_NOAA20_NRT", "start": "2018-04-01", "end": null}
+    "NOAA-20": {"sp": "VIIRS_NOAA20_SP", "nrt": "VIIRS_NOAA20_NRT", "start": "2023-01-01", "end": null}
   },
   "firms_7d": {
     "modis": "https://firms.modaps.eosdis.nasa.gov/data/active_fire/modis-c6.1/csv/MODIS_C6_1_Global_7d.csv",
