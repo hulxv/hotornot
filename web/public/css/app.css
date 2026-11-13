@@ -1,0 +1,617 @@
+/* The calendar reads --bg, --fg, --muted and the --cal-* tokens through getComputedStyle
+   (js/calendar/palette.js, PALETTE_TOKENS). They must stay #rrggbb hex: the calendar computes
+   contrast from them. tests/e2e.test.js checks them against CALENDAR_PALETTE and
+   CALENDAR_PALETTE_DARK. */
+:root {
+  color-scheme: light;
+  --page: #f4f4f1;
+  --bg: #ffffff;
+  --fg: #1a1a1a;
+  --muted: #555555;
+  --border: #d4d4cf;
+  --link: #1d4ed8;
+  --focus: #2563eb;
+  --accent: #6d28d9;
+  --accent-fg: #ffffff;
+  --hover: rgb(0 0 0 / 0.05);
+  --warning-bg: #fff4d6;
+  --warning-fg: #4d3900;
+  --warning-border: #d9a91a;
+  --error-bg: #fdecec;
+  --error-fg: #7f1d1d;
+  --error-border: #e29a9a;
+  --skeleton: #e6e6e2;
+
+  --cal-seq-0: #440154;
+  --cal-seq-1: #482475;
+  --cal-seq-2: #414487;
+  --cal-seq-3: #355f8d;
+  --cal-seq-4: #2a788e;
+  --cal-seq-5: #21918c;
+  --cal-seq-6: #22a884;
+  --cal-seq-7: #44bf70;
+  --cal-seq-8: #7ad151;
+  --cal-seq-9: #bddf26;
+  --cal-seq-10: #fde725;
+  --cal-div-0: #2166ac;
+  --cal-div-1: #4393c3;
+  --cal-div-2: #92c5de;
+  --cal-div-3: #d1e5f0;
+  --cal-div-4: #eeeeee;
+  --cal-div-5: #fee0b6;
+  --cal-div-6: #fdb863;
+  --cal-div-7: #e08214;
+  --cal-div-8: #b35806;
+  --cal-zero: #d6d6d6;
+  --cal-outline: #8a8a8a;
+  --cal-mark-dark: #000000;
+  --cal-mark-light: #ffffff;
+  --cal-season: #6b6b6b;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    color-scheme: dark;
+    --page: #0f1013;
+    --bg: #17191e;
+    --fg: #ececec;
+    --muted: #a6a8ad;
+    --border: #33363d;
+    --link: #93b4ff;
+    --focus: #93b4ff;
+    --accent: #7c3aed;
+    --accent-fg: #ffffff;
+    --hover: rgb(255 255 255 / 0.07);
+    --warning-bg: #352a08;
+    --warning-fg: #ffe29a;
+    --warning-border: #7d6420;
+    --error-bg: #3a1515;
+    --error-fg: #ffc2c2;
+    --error-border: #7d3030;
+    --skeleton: #262930;
+
+    --cal-div-0: #9ecae1;
+    --cal-div-1: #6baed6;
+    --cal-div-2: #4292c6;
+    --cal-div-3: #2c5f8a;
+    --cal-div-4: #2b2d33;
+    --cal-div-5: #7a4a12;
+    --cal-div-6: #b35806;
+    --cal-div-7: #e08214;
+    --cal-div-8: #fdb863;
+    --cal-zero: #3a3c40;
+    --cal-outline: #8a8c91;
+    --cal-season: #9a9ca1;
+  }
+}
+
+body {
+  background: var(--page);
+  line-height: 1.5;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.skip-link {
+  position: absolute;
+  top: 0.5rem;
+  left: 0.5rem;
+  z-index: 10;
+  padding: 0.5rem 0.75rem;
+  border-radius: 0.375rem;
+  background: var(--bg);
+  color: var(--link);
+  transform: translateY(-200%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.app-header {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.app-header__inner {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.75rem 1.5rem;
+  max-width: 84rem;
+  margin: 0 auto;
+  padding: 0.75rem 1rem 1rem;
+}
+
+.brand__name {
+  color: var(--fg);
+  font-size: 1.375rem;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.brand__tagline {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9375rem;
+}
+
+.app-nav {
+  align-self: start;
+  padding-top: 0.25rem;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  grid-column: 1 / -1;
+  align-items: flex-end;
+  gap: 0.75rem 2rem;
+}
+
+.control {
+  display: grid;
+  gap: 0.25rem;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.control__label {
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+.control__buttons,
+.control__row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.375rem 0.75rem;
+}
+
+.control__buttons {
+  gap: 0.375rem;
+  min-height: 2.25rem;
+}
+
+.button {
+  min-height: 2.25rem;
+  padding: 0.375rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.875rem;
+  line-height: 1.2;
+  cursor: pointer;
+}
+
+.button:hover:not(:disabled) {
+  background-image: linear-gradient(var(--hover), var(--hover));
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.button[aria-pressed="true"] {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.button--small {
+  min-height: 2rem;
+  padding: 0.25rem 0.625rem;
+  font-size: 0.8125rem;
+}
+
+.segmented {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  overflow: hidden;
+}
+
+.segmented label {
+  position: relative;
+  display: flex;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.segmented label + label {
+  border-left: 1px solid var(--border);
+}
+
+.segmented input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.segmented span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0.375rem 0.75rem;
+  background: var(--bg);
+}
+
+.segmented label:hover span {
+  background-image: linear-gradient(var(--hover), var(--hover));
+}
+
+.segmented input:checked + span {
+  background: var(--accent);
+  color: var(--accent-fg);
+}
+
+.segmented input:focus-visible + span {
+  outline: 3px solid var(--focus);
+  outline-offset: -3px;
+}
+
+.select,
+.checkbox {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.select select {
+  min-height: 2.25rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 0.375rem;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+}
+
+.checkbox input {
+  width: 1.125rem;
+  height: 1.125rem;
+  accent-color: var(--accent);
+}
+
+.notice {
+  max-width: 84rem;
+  margin: 0 auto;
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--warning-border);
+  background: var(--warning-bg);
+  color: var(--warning-fg);
+  font-size: 0.875rem;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 22rem;
+  grid-template-areas:
+    "map side"
+    "calendar side";
+  align-items: start;
+  gap: 1rem;
+  max-width: 84rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.map-section {
+  grid-area: map;
+  min-width: 0;
+}
+
+.side {
+  display: grid;
+  grid-area: side;
+  gap: 1rem;
+  min-width: 0;
+}
+
+.calendar-section {
+  grid-area: calendar;
+  min-width: 0;
+}
+
+@media (max-width: 64rem) {
+  .layout {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-areas:
+      "map"
+      "side"
+      "calendar";
+  }
+}
+
+.card {
+  padding: 1rem;
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  background: var(--bg);
+}
+
+.card p {
+  margin: 0 0 0.5rem;
+}
+
+.card p:last-child {
+  margin-bottom: 0;
+}
+
+.card__title {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+  line-height: 1.3;
+}
+
+.map {
+  height: clamp(28rem, 64vh, 40rem);
+}
+
+/* The map module draws its own region presets; the header's replace them on this page. */
+.map .hon-map__group:has([data-region]) {
+  display: none;
+}
+
+.area-summary {
+  min-height: 3em;
+}
+
+.banner {
+  margin: 0.5rem 0 0;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid;
+  border-radius: 0.375rem;
+  font-size: 0.875rem;
+}
+
+.banner--warning {
+  border-color: var(--warning-border);
+  background: var(--warning-bg);
+  color: var(--warning-fg);
+}
+
+.banner--error {
+  border-color: var(--error-border);
+  background: var(--error-bg);
+  color: var(--error-fg);
+}
+
+.message p {
+  margin: 0 0 0.375rem;
+}
+
+.message__title {
+  font-weight: 600;
+}
+
+.message__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.5rem;
+}
+
+.month-card__body {
+  min-height: 8.5rem;
+}
+
+.month-card__sentence {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.month-card__details {
+  display: grid;
+  gap: 0.125rem;
+  margin: 0.5rem 0;
+  font-size: 0.875rem;
+}
+
+.month-card__details div {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.month-card__details dt {
+  color: var(--muted);
+}
+
+.month-card__details dd {
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.flag {
+  padding-left: 0.625rem;
+  border-left: 3px solid var(--warning-border);
+  font-size: 0.875rem;
+}
+
+.exports__list {
+  display: grid;
+  gap: 0.625rem;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  list-style: none;
+}
+
+.exports__list li {
+  display: grid;
+  justify-items: start;
+  gap: 0.125rem;
+}
+
+.exports__hint,
+.exports__note {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.exports__status {
+  font-size: 0.875rem;
+}
+
+.exports__status:empty {
+  display: none;
+}
+
+/* The frame keeps the calendar's height while it loads, so nothing below it moves. */
+
+.calendar-frame {
+  position: relative;
+}
+
+.calendar {
+  width: 100%;
+  transition: opacity 0.15s;
+}
+
+.calendar-skeleton {
+  position: absolute;
+  inset: 0;
+  display: none;
+  border-radius: 0.25rem;
+  background:
+    linear-gradient(var(--skeleton) 0 0) 1rem 1rem / min(14rem, 60%) 1rem no-repeat,
+    linear-gradient(var(--skeleton) 0 0) 1rem 2.5rem / min(22rem, 80%) 0.75rem no-repeat,
+    linear-gradient(var(--skeleton) 0 0) 1rem 4.25rem / min(18rem, 70%) 0.625rem no-repeat,
+    repeating-linear-gradient(var(--skeleton) 0 15px, transparent 15px 17px) 5.5rem 8.5rem / calc(100% - 6.5rem) calc(100% - 9.5rem) no-repeat;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+.calendar-status {
+  margin: 0;
+}
+
+.calendar-frame[data-state="initial"] .calendar {
+  visibility: hidden;
+}
+
+.calendar-frame[data-state="initial"] .calendar-skeleton {
+  display: block;
+}
+
+.calendar-frame[data-state="initial"] .calendar-status,
+.calendar-frame[data-state="ready"] .calendar-status {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+}
+
+.calendar-frame[data-state="loading"] .calendar {
+  opacity: 0.45;
+}
+
+.calendar-frame[data-state="loading"] .calendar-status {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  padding: 0.25rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--bg);
+  font-size: 0.875rem;
+}
+
+.calendar-frame[data-state="empty"] .calendar {
+  visibility: hidden;
+}
+
+.calendar-frame[data-state="empty"] .calendar-status {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  padding: 2rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+.skeleton {
+  display: grid;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+}
+
+.skeleton__line {
+  display: block;
+  height: 0.875rem;
+  border-radius: 0.25rem;
+  background: var(--skeleton);
+  animation: pulse 1.6s ease-in-out infinite;
+}
+
+.skeleton__line--inline {
+  width: 32rem;
+  max-width: 100%;
+  height: 2.25rem;
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.55;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton__line,
+  .calendar-skeleton {
+    animation: none;
+  }
+
+  .calendar {
+    transition: none;
+  }
+}
+
+.app-footer {
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  font-size: 0.8125rem;
+}
+
+.app-footer__inner {
+  max-width: 84rem;
+  margin: 0 auto;
+  padding: 1rem;
+}
+
+.app-footer p {
+  margin: 0 0 0.5rem;
+}
