@@ -11,6 +11,7 @@ import {
   snappedOverlay,
   validateBox,
 } from "./geometry.js";
+import { PALESTINE_POINT, labelPatches, palestineLabelLayer } from "./labels.js";
 
 /**
  * @typedef {import("../../shared/contracts.js").Aoi} Aoi
@@ -284,7 +285,14 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
   });
 
   function addLayers() {
-    const firstLabel = map.getStyle().layers.find((layer) => layer.type === "symbol")?.id;
+    const styleLayers = map.getStyle().layers;
+    for (const { id, textField, filter } of labelPatches(styleLayers)) {
+      map.setLayoutProperty(id, "text-field", textField);
+      if (filter) map.setFilter(id, filter);
+    }
+    map.addSource("hon-palestine", { type: "geojson", data: PALESTINE_POINT });
+    map.addLayer(palestineLabelLayer(styleLayers, "hon-palestine"));
+    const firstLabel = styleLayers.find((layer) => layer.type === "symbol")?.id;
     map.addImage(HATCH_IMAGE, hatchImage(), { pixelRatio: 2 });
     map.addSource("hon-regions", { type: "geojson", data: regionsToGeoJSON(regions) });
     map.addSource("hon-counted", { type: "geojson", data: EMPTY });

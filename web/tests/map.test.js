@@ -264,3 +264,57 @@ describe("hatchImage", () => {
     }
   });
 });
+
+describe("basemap labels", async () => {
+  const { ENGLISH_NAME, labelPatches, palestineLabelLayer } = await import("../public/js/map/labels.js");
+  const bilingual = ["case", ["has", "name:nonlatin"], ["concat", ["get", "name:latin"], "\n", ["get", "name:nonlatin"]], ["get", "name"]];
+  const country = {
+    id: "label_country_3",
+    type: "symbol",
+    "source-layer": "place",
+    minzoom: 2,
+    filter: ["all", ["==", ["get", "class"], "country"], [">=", ["get", "rank"], 3]],
+    layout: { "text-field": bilingual, "text-size": 10 },
+    paint: { "text-color": "#334" },
+  };
+  const layers = [
+    { id: "water", type: "fill" },
+    { id: "road_one_way_arrow", type: "symbol", layout: { "icon-image": "arrow" } },
+    { id: "highway-shield", type: "symbol", layout: { "text-field": ["to-string", ["get", "ref"]] } },
+    { id: "label_city", type: "symbol", "source-layer": "place", filter: ["==", ["get", "class"], "city"], layout: { "text-field": bilingual } },
+    {
+      id: "label_other",
+      type: "symbol",
+      "source-layer": "place",
+      minzoom: 8,
+      filter: ["match", ["get", "class"], ["city", "country", "town"], false, true],
+      layout: { "text-field": bilingual },
+    },
+    country,
+  ];
+
+  it("switches every name label to English and leaves other labels alone", () => {
+    const patches = labelPatches(layers);
+    assert.deepEqual(patches.map((patch) => patch.id), ["label_city", "label_other", "label_country_3"]);
+    for (const patch of patches) assert.deepEqual(patch.textField, ENGLISH_NAME);
+    assert.equal(JSON.stringify(ENGLISH_NAME).includes("nonlatin"), false);
+  });
+
+  it("hides the style's Israel and Palestine country labels only", () => {
+    const [city, other, countryPatch] = labelPatches(layers);
+    assert.equal(city.filter, undefined);
+    assert.equal(other.filter, undefined);
+    assert.equal(countryPatch.filter[0], "all");
+    assert.deepEqual(countryPatch.filter[1], country.filter);
+    assert.ok(JSON.stringify(countryPatch.filter[2]).includes('"Israel"'));
+  });
+
+  it("adds Palestine styled like the country labels", () => {
+    const layer = palestineLabelLayer(layers, "hon-palestine");
+    assert.equal(layer.layout["text-field"], "Palestine");
+    assert.equal(layer.layout["text-size"], 10);
+    assert.equal(layer.paint["text-color"], "#334");
+    assert.equal(layer.minzoom, 2);
+    assert.equal(layer.source, "hon-palestine");
+  });
+});
