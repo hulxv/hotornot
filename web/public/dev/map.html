@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="noindex">
+    <title>Map module (dev) · HotOrNot</title>
+    <link rel="stylesheet" href="/vendor/maplibre-gl.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <script src="/vendor/maplibre-gl.js" defer></script>
+    <script src="/vendor/terra-draw.umd.js" defer></script>
+    <script src="/vendor/terra-draw-maplibre-gl-adapter.umd.js" defer></script>
+    <style>
+      main.dev {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(16rem, 24rem);
+        gap: 1rem 1.5rem;
+        max-width: none;
+        padding: 1rem;
+      }
+      main.dev > header {
+        grid-column: 1 / -1;
+      }
+      main.dev h1 {
+        margin: 0;
+        font-size: 1.25rem;
+      }
+      main.dev h2 {
+        margin: 0 0 0.5rem;
+        font-size: 1rem;
+      }
+      #map {
+        height: 78vh;
+      }
+      #samples {
+        display: grid;
+        gap: 0.375rem;
+        margin-bottom: 1rem;
+      }
+      #samples button {
+        padding: 0.375rem 0.75rem;
+        font: inherit;
+        font-size: 0.875rem;
+        text-align: left;
+      }
+      #log {
+        max-height: 50vh;
+        margin: 0;
+        overflow: auto;
+        font-size: 0.75rem;
+        white-space: pre-wrap;
+        word-break: break-all;
+      }
+      @media (max-width: 52rem) {
+        main.dev {
+          grid-template-columns: minmax(0, 1fr);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="dev">
+      <header>
+        <h1>Map module (dev page)</h1>
+        <p class="muted">
+          <code>/js/map/map.js</code> with regions from the mock <code>/api/metadata</code>. Cells are snapped
+          here with a stand-in for <code>shared/aoi.js</code>; they are drawn only once <code>/shared/grid.js</code>
+          (W03) is present.
+        </p>
+      </header>
+      <div id="map"></div>
+      <aside aria-labelledby="samples-title">
+        <h2 id="samples-title">Test areas (setAoi)</h2>
+        <div id="samples"></div>
+        <h2 id="log-title">Callbacks</h2>
+        <pre id="log" aria-labelledby="log-title"></pre>
+      </aside>
+    </main>
+    <script type="module">
+      import { createMap } from "/js/map/map.js";
+      import { boxPolygon } from "/js/map/geometry.js";
+
+      // n_argentina cells whose centers lie in Bolivia or Brazil (Natural Earth boundaries from
+      // the pipeline database), as [row, first col, last col]. P10 publishes them with covered = 0.
+      const N_ARGENTINA_UNCOVERED_RUNS = [
+        [1194, 2451, 2455], [1195, 2448, 2456], [1196, 2448, 2456], [1197, 2449, 2458], [1198, 2451, 2459],
+        [1199, 2452, 2459], [1200, 2453, 2459], [1201, 2454, 2459], [1202, 2454, 2459], [1203, 2455, 2459],
+        [1204, 2456, 2459], [1205, 2458, 2459], [1206, 2459, 2459], [1343, 2313, 2313], [1344, 2313, 2313],
+        [1345, 2312, 2313], [1346, 2312, 2313], [1347, 2311, 2314], [1348, 2311, 2314], [1349, 2311, 2314],
+        [1350, 2310, 2315], [1351, 2310, 2316], [1352, 2310, 2316], [1353, 2309, 2317], [1354, 2308, 2317],
+        [1355, 2308, 2318], [1355, 2458, 2459], [1356, 2305, 2318], [1356, 2346, 2346], [1356, 2448, 2459],
+        [1357, 2301, 2319], [1357, 2345, 2347], [1357, 2442, 2443], [1357, 2447, 2459], [1358, 2284, 2319],
+        [1358, 2344, 2347], [1358, 2441, 2459], [1359, 2283, 2321], [1359, 2324, 2325], [1359, 2344, 2347],
+        [1359, 2440, 2459],
+      ];
+      const UNCOVERED = new Set(
+        N_ARGENTINA_UNCOVERED_RUNS.flatMap(([row, first, last]) =>
+          Array.from({ length: last - first + 1 }, (_, i) => row * 7200 + first + i),
+        ),
+      );
+
+      // Copied from web/mocks/aoi.json, which the server does not serve.
+      const MOCK_AOIS = {
+        nile_delta: { type: "Polygon", coordinates: [[[30.8, 30.6], [31.4, 30.6], [31.4, 31.1], [30.8, 31.1], [30.8, 30.6]]] },
+        se_australia: {
+          type: "Polygon",
+          coordinates: [[[148, -37.8], [149.5, -37.8], [149.5, -36.5], [148, -36.5], [148, -37.8]]],
+        },
+      };
+
+      const logElement = document.getElementById("log");
+      const write = (text) => {
+        const time = new Date().toLocaleTimeString("en-GB");
+        logElement.textContent = `${time} ${text}\n\n${logElement.textContent}`.slice(0, 20000);
+      };
+
+      const metadata = await (await fetch("/api/metadata")).json();
+      const regions = metadata.regions;
+
+      const inside = (lon, lat, ring) => {
+        let hit = false;
+        for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
+          const [xi, yi] = ring[i];
+          const [xj, yj] = ring[j];
+          if (yi > lat !== yj > lat && lon < ((xj - xi) * (lat - yi)) / (yj - yi) + xi) hit = !hit;
+        }
+        return hit;
+      };
+
+      // Stand-in for the CONTRACTS AOI rules: region of largest bbox overlap, then the region
+      // cells whose center is inside the polygon.
+      function snap(polygon) {
+        const ring = polygon.coordinates[0];
+        const lons = ring.map(([lon]) => lon);
+        const lats = ring.map(([, lat]) => lat);
+        const box = [Math.min(...lons), Math.min(...lats), Math.max(...lons), Math.max(...lats)];
+        const overlap = (b) =>
+          Math.max(0, Math.min(box[2], b[2]) - Math.max(box[0], b[0])) * Math.max(0, Math.min(box[3], b[3]) - Math.max(box[1], b[1]));
+        const region = regions.reduce((best, r) => (overlap(r.bbox) > (best ? overlap(best.bbox) : 0) ? r : best), null);
+        if (!region) return null;
+        const [west, south, east, north] = region.bbox;
+        const cells = [];
+        const uncovered = [];
+        const rowFrom = Math.floor((Math.max(box[1], south) + 90) * 20);
+        const rowTo = Math.floor((Math.min(box[3], north) + 90) * 20);
+        const colFrom = Math.floor((Math.max(box[0], west) + 180) * 20);
+        const colTo = Math.floor((Math.min(box[2], east) + 180) * 20);
+        for (let row = rowFrom; row <= rowTo; row += 1) {
+          const lat = (row + 0.5) / 20 - 90;
+          if (lat < south || lat > north) continue;
+          for (let col = colFrom; col <= colTo; col += 1) {
+            const lon = (col + 0.5) / 20 - 180;
+            if (lon < west || lon > east || !inside(lon, lat, ring)) continue;
+            const id = row * 7200 + col;
+            (region.id === "n_argentina" && UNCOVERED.has(id) ? uncovered : cells).push(id);
+          }
+        }
+        return { region, cells, uncovered };
+      }
+
+      function show(polygon, { source }) {
+        if (!polygon) {
+          write(`onAoiChange(null, ${source})`);
+          map.setSnapped([]);
+          return;
+        }
+        const started = performance.now();
+        const result = snap(polygon);
+        const json = JSON.stringify(polygon);
+        const head = `onAoiChange(${source}): ${polygon.coordinates[0].length - 1} vertices`;
+        if (!result) {
+          write(`${head}, outside every region\n${json}`);
+          map.setSnapped([]);
+          return;
+        }
+        const ms = (performance.now() - started).toFixed(1);
+        write(
+          `${head}, ${result.region.id}: ${result.cells.length} counted and ${result.uncovered.length} ` +
+            `no-data cells (snapped in ${ms} ms)\n${json.length > 600 ? `${json.slice(0, 600)}…` : json}`,
+        );
+        const drawStarted = performance.now();
+        map.setSnapped(result.cells, result.uncovered).then(() => {
+          write(`setSnapped resolved in ${(performance.now() - drawStarted).toFixed(1)} ms`);
+        });
+      }
+
+      const map = createMap(document.getElementById("map"), {
+        regions,
+        onAoiChange: show,
+        onRegionSelect: (id) => write(`onRegionSelect(${id})`),
+      });
+
+      const argentina = regions.find((region) => region.id === "n_argentina");
+      const samples = [
+        ["Mock AOI: Nile Delta (mocks/aoi.json)", MOCK_AOIS.nile_delta],
+        ["Mock AOI: SE Australia (mocks/aoi.json)", MOCK_AOIS.se_australia],
+        ["Whole n_argentina box: hatched Bolivia and Brazil slivers", boxPolygon(argentina.bbox)],
+        ["Bolivia border, crossing the region's north edge", boxPolygon([-66, -23, -62, -21.5])],
+        ["Brazil sliver at Uruguaiana", boxPolygon([-58, -30.5, -57, -29.4])],
+      ];
+      const samplesElement = document.getElementById("samples");
+      for (const [label, polygon] of samples) {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = label;
+        button.addEventListener("click", async () => {
+          await map.setAoi(polygon);
+          show(polygon, { source: "setAoi" });
+        });
+        samplesElement.append(button);
+      }
+      const clearButton = document.createElement("button");
+      clearButton.type = "button";
+      clearButton.textContent = "clear() (no callback)";
+      clearButton.addEventListener("click", () => {
+        map.clear();
+        write("clear()");
+      });
+      samplesElement.append(clearButton);
+    </script>
+  </body>
+</html>
