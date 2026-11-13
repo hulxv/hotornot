@@ -396,6 +396,7 @@ const validationSummary = object({
   n20_seam: array(
     object({ region_id: regionId, annual_error_pct: number(), monthly_r: number({ min: -1, max: 1 }) }),
   ),
+  drift: optional(array(object({ region_id: regionId, year: int(), modis_snpp_ratio: nullable(amount) }))),
 });
 
 const regionValidation = object({

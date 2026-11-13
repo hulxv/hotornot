@@ -244,9 +244,10 @@ def daily_counts(counts):
     return veg, row_days
 
 
-def fit_factors(region, cfg, veg, coverage, satellites):
+def fit_factors(region, cfg, veg, coverage, satellites, years=None):
     """({(month, satellite): (factor, level)}, calibration counts) for the VIIRS `satellites`
-    that have rows to weight in the region."""
+    that have rows to weight in the region. `years` limits the S-NPP calibration to those
+    calibration years (P09's refits); the NOAA-20 transfer always uses N20_TRANSFER."""
     rid = region["id"]
     factors, calib = {}, {}
     if not satellites:
@@ -255,7 +256,7 @@ def fit_factors(region, cfg, veg, coverage, satellites):
     cal = [d.isoformat() for d in config.CALIBRATION]
     days = 0
     for day in days_between(*cal):
-        if coverage.observed(rid, "S-NPP", day):
+        if (years is None or int(day[:4]) in years) and coverage.observed(rid, "S-NPP", day):
             m = int(day[5:7])
             days += 1
             modis[m] += veg[rid, "Terra"][day] + veg[rid, "Aqua"][day]
