@@ -436,6 +436,90 @@ body {
   font-weight: 600;
 }
 
+.button--primary {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-fg);
+  font-weight: 600;
+}
+
+.app-header__actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 1rem;
+}
+
+.app-header__actions .app-nav {
+  padding-top: 0;
+}
+
+.story {
+  border-top: 6px solid var(--accent);
+}
+
+.card .story__step {
+  margin: 0 0 0.25rem;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.story__title {
+  margin: 0 0 0.5rem;
+  font-size: 1.375rem;
+  line-height: 1.25;
+}
+
+.card .story__body,
+.card .story__caption {
+  max-width: 65ch;
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+
+.card .story__body {
+  margin-bottom: 0.875rem;
+}
+
+.card .story__caption {
+  margin-bottom: 0.875rem;
+  padding-left: 0.75rem;
+  border-left: 4px solid var(--accent);
+  font-weight: 700;
+  line-height: 1.45;
+}
+
+.card .story__more {
+  margin-bottom: 0.875rem;
+}
+
+.story__controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.story__close {
+  margin-left: auto;
+}
+
+/* While the story is open it sits above the verdict and the map spans both; the verdict row takes
+   the map's extra height, so the story card stays right on top of the verdict. */
+@media (min-width: 64rem) {
+  .story {
+    grid-area: story;
+  }
+
+  .page:has(> .story:not([hidden])) {
+    grid-template-rows: auto auto 1fr auto;
+    grid-template-areas:
+      "picker picker"
+      "story map"
+      "verdict map"
+      "calendar calendar";
+  }
+}
+
 .map-section {
   min-width: 0;
 }

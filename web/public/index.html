@@ -28,6 +28,8 @@
     <link rel="modulepreload" href="/js/panels/exports.js">
     <link rel="modulepreload" href="/js/panels/messages.js">
     <link rel="modulepreload" href="/js/panels/verdict-card.js">
+    <link rel="modulepreload" href="/js/story/story.js">
+    <link rel="modulepreload" href="/js/story/chapters.js">
     <link rel="modulepreload" href="/shared/contracts.js">
     <link rel="modulepreload" href="/shared/grid.js">
     <link rel="modulepreload" href="/shared/aoi.js">
@@ -48,9 +50,12 @@
           <h1 class="brand__name">Hot or Not</h1>
           <p class="brand__tagline">Is this place burning more than usual? Satellite fire detections since 2000.</p>
         </div>
-        <nav class="app-nav" aria-label="Pages">
-          <a href="/method.html">How it works</a>
-        </nav>
+        <div class="app-header__actions">
+          <button type="button" class="button button--primary" id="story-start" aria-controls="story" aria-expanded="false" disabled>Tell me the story</button>
+          <nav class="app-nav" aria-label="Pages">
+            <a href="/method.html">How it works</a>
+          </nav>
+        </div>
       </div>
       <p class="notice" id="notice" role="status" hidden></p>
     </header>
@@ -69,6 +74,21 @@
         <p class="area-summary muted" id="area-summary" aria-live="polite"></p>
         <p class="banner banner--warning" id="clip-warning" role="status" hidden></p>
         <div class="banner banner--error message" id="area-message" role="alert" hidden></div>
+      </section>
+
+      <section class="card story" id="story" aria-labelledby="story-title" tabindex="-1" hidden>
+        <div class="story__text" aria-live="polite" aria-atomic="true">
+          <p class="story__step" id="story-step"></p>
+          <h2 class="story__title" id="story-title">The story</h2>
+          <p class="story__body" id="story-body"></p>
+          <p class="story__caption" id="story-caption"></p>
+        </div>
+        <p class="story__more" id="story-more" hidden><a id="story-link" href="/method.html#seam">See the test</a></p>
+        <div class="story__controls">
+          <button type="button" class="button" id="story-back">Back</button>
+          <button type="button" class="button button--primary" id="story-next">Next</button>
+          <button type="button" class="button story__close" id="story-close">Close</button>
+        </div>
       </section>
 
       <section class="card verdict" id="verdict-card" aria-labelledby="verdict-heading" data-verdict="none">

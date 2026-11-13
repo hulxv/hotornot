@@ -28,6 +28,7 @@ import {
   parseHtml,
   resolveColor,
   transferTotals,
+  withPageGlobals,
 } from "../scripts/a11y-check.js";
 import { prewarm, prewarmCalls } from "../scripts/prewarm.js";
 import { fixtureDir } from "./fixtures/fixture.js";
@@ -443,6 +444,39 @@ describe("the served pages", () => {
     assert.equal(rows.length, 313);
     assert.equal(rows[0].querySelector("th").textContent, "November 2026");
     assert.equal(doc.querySelector("#map-heading").textContent, "Map");
+  });
+
+  it("passes the checker with the story tour open at every step, and closing restores the page", async () => {
+    const { doc } = await auditPage(base, "/");
+    const steps = [];
+    await withPageGlobals(doc, base, "/", async () => {
+      doc.getElementById("region-presets").querySelector('[data-region="se_australia"]').click();
+      doc.getElementById("story-start").click();
+      for (let i = 0; i < 7; i += 1) {
+        steps.push({
+          step: doc.getElementById("story-step").textContent,
+          link: !doc.getElementById("story-more").hidden,
+          findings: checkDocument(doc),
+        });
+        doc.getElementById("story-next").click();
+      }
+    });
+    assert.equal(doc.getElementById("story").hidden, false);
+    assert.deepEqual(steps.map((s) => s.step), [1, 2, 3, 4, 5, 6, 7].map((n) => `Step ${n} of 7`));
+    assert.deepEqual(steps.map((s) => s.link), [false, false, true, false, false, false, false]);
+    assert.deepEqual(steps.flatMap((s) => s.findings), []);
+    assert.deepEqual(checkDocument(doc), [], "after the last step's requests");
+    const pressed = () => doc.querySelectorAll("#region-presets button[aria-pressed=true]").map((b) => b.getAttribute("data-region"));
+    assert.deepEqual(pressed(), ["california"]);
+    const heading = () => doc.getElementById("verdict-heading").textContent;
+    const name = (id) => mocks.metadata.regions.find((region) => region.id === id).name;
+    assert.ok(heading().includes(name("california")), heading());
+
+    await withPageGlobals(doc, base, "/", async () => doc.getElementById("story-close").click());
+    assert.equal(doc.getElementById("story").hidden, true);
+    assert.deepEqual(pressed(), ["se_australia"]);
+    assert.ok(heading().includes(name("se_australia")), heading());
+    assert.deepEqual(checkDocument(doc), []);
   });
 
   it("names every numbers table on the method page after its chart", async () => {

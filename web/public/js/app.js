@@ -9,6 +9,7 @@ import { h } from "./panels/dom.js";
 import { createExportsPanel } from "./panels/exports.js";
 import { errorMessage } from "./panels/messages.js";
 import { renderVerdict } from "./panels/verdict-card.js";
+import { createStory } from "./story/story.js";
 import { EXAMPLES, VIEWS, areaFromPolygon, areaPolygon, parseState, serializeState, seriesForView } from "./url-state.js";
 import { verdict, verdictMonth } from "./verdict.js";
 
@@ -284,6 +285,7 @@ export async function startApp(doc = document) {
 
   setState({});
   showArea();
+  createStory(doc, { getState: () => state, applyState });
 
   /** The month the verdict is about and the calendar outlines, YYYY-MM. */
   function focusMonth() {
@@ -358,8 +360,7 @@ export async function startApp(doc = document) {
             const click = /** @type {MouseEvent} */ (event);
             if (click.button > 0 || click.metaKey || click.ctrlKey || click.shiftKey || click.altKey) return;
             click.preventDefault();
-            setState({ ...example.state });
-            showArea();
+            applyState(example.state);
           },
         }),
       ]),
@@ -416,6 +417,12 @@ export async function startApp(doc = document) {
     }
     setState({ start: from === firstYear ? null : `${from}-01`, end: to === lastYear ? null : `${to}-12` });
     load();
+  }
+
+  /** @param {AppState} next a whole state: a Try link or a story step */
+  function applyState(next) {
+    setState({ ...next });
+    showArea();
   }
 
   /** @param {string} id */
