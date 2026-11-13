@@ -441,7 +441,8 @@ const tileRow = object({
   lat,
   lon,
   daynight: oneOf(["D", "N"]),
-  frp_mw: amount,
+  // FIRMS delivers a few slightly negative FRP values (down to about -1.5 MW) as-is.
+  frp_mw: number(),
   confidence: nonEmpty,
   fire_type: nullable(int({ min: 0, max: 3 })),
   processing: oneOf(["SP", "NRT"]),
