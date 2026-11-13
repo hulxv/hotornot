@@ -1,0 +1,86 @@
+{
+  "source": "https://www.jsdelivr.com",
+  "files": [
+    {
+      "name": "maplibre-gl",
+      "version": "5.24.1",
+      "license": "BSD-3-Clause",
+      "file": "maplibre-gl.js",
+      "url": "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.1/dist/maplibre-gl.js",
+      "bytes": 1058059,
+      "sha256": "a9c9e2aa36d4d5b63b131f27c1272f1a28883eeecc0eddd1e0dbfae4033bc7c9"
+    },
+    {
+      "name": "maplibre-gl",
+      "version": "5.24.1",
+      "license": "BSD-3-Clause",
+      "file": "maplibre-gl.css",
+      "url": "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.1/dist/maplibre-gl.css",
+      "bytes": 70024,
+      "sha256": "ab1e70d59ec40465bae7e7030da2f3ccf28133fd502e62bd598eefbadfd7a732"
+    },
+    {
+      "name": "maplibre-gl",
+      "version": "5.24.1",
+      "license": "BSD-3-Clause",
+      "file": "licenses/maplibre-gl-LICENSE.txt",
+      "url": "https://cdn.jsdelivr.net/npm/maplibre-gl@5.24.1/LICENSE.txt",
+      "bytes": 5984,
+      "sha256": "ee5fc05a0677eaf69601d2c7db0d9ecd6cc27c3abc1d0733bc9ed34707cf8ef2"
+    },
+    {
+      "name": "echarts",
+      "version": "6.1.0",
+      "license": "Apache-2.0",
+      "file": "echarts.min.js",
+      "url": "https://cdn.jsdelivr.net/npm/echarts@6.1.0/dist/echarts.min.js",
+      "bytes": 1121883,
+      "sha256": "b66b25aeb4df84e33199dc21694014d336d222cbd9deb0e5a7c14bd6aa0d0fd0"
+    },
+    {
+      "name": "echarts",
+      "version": "6.1.0",
+      "license": "Apache-2.0",
+      "file": "licenses/echarts-LICENSE.txt",
+      "url": "https://cdn.jsdelivr.net/npm/echarts@6.1.0/LICENSE",
+      "bytes": 11990,
+      "sha256": "634293835b43a6dd2094fa39182a3d9a6b9ca43b7fdb9ac354e8037af2a3093a"
+    },
+    {
+      "name": "echarts",
+      "version": "6.1.0",
+      "license": "Apache-2.0",
+      "file": "licenses/echarts-NOTICE.txt",
+      "url": "https://cdn.jsdelivr.net/npm/echarts@6.1.0/NOTICE",
+      "bytes": 168,
+      "sha256": "d491d358344f842685c1b1585970999db65fe30ecf7ef3867af8814f4016c016"
+    },
+    {
+      "name": "terra-draw",
+      "version": "1.39.0",
+      "license": "MIT",
+      "file": "terra-draw.umd.js",
+      "url": "https://cdn.jsdelivr.net/npm/terra-draw@1.39.0/dist/terra-draw.umd.js",
+      "bytes": 277651,
+      "sha256": "c62ce3db0c345ad820ca5e01306a3a13251a58ae8bf35a35e7844f9823e3bf30"
+    },
+    {
+      "name": "terra-draw-maplibre-gl-adapter",
+      "version": "1.5.0",
+      "license": "MIT",
+      "file": "terra-draw-maplibre-gl-adapter.umd.js",
+      "url": "https://cdn.jsdelivr.net/npm/terra-draw-maplibre-gl-adapter@1.5.0/dist/terra-draw-maplibre-gl-adapter.umd.js",
+      "bytes": 8914,
+      "sha256": "ca325fd1d8e55fdf357df668184ae677d729eec5c8514f24c2ea1efbe45dce34"
+    },
+    {
+      "name": "terra-draw",
+      "version": "1.39.0",
+      "license": "MIT",
+      "file": "licenses/terra-draw-LICENSE.txt",
+      "url": "https://cdn.jsdelivr.net/gh/JamesLMilner/terra-draw@terra-draw@1.39.0/LICENSE",
+      "bytes": 1053,
+      "sha256": "78f5dfcbb9d43a76b4919d79dbd23381bb9cb48b4b40e49c050bbc175e3e7e28"
+    }
+  ]
+}
