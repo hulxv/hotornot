@@ -1,6 +1,6 @@
 :root {
-  --border: #cbd5e1;
-  --panel: #f0f4f8;
+  --border: #ddd6c8;
+  --panel: #f3efe6;
   --notice-bg: #fff7ed;
   --notice-edge: #ea580c;
   --pass: #1a1a1a;
@@ -9,8 +9,8 @@
 
 @media (prefers-color-scheme: dark) {
   :root {
-    --border: #263346;
-    --panel: #111827;
+    --border: #2e3138;
+    --panel: #1d2025;
     --notice-bg: #2a180a;
     --notice-edge: #f97316;
     --pass: #ececec;
@@ -23,17 +23,15 @@
 .surface {
   --fg: #1a1a1a;
   --muted: #555555;
-  --link: #0369a1;
-  --border: #cbd5e1;
-  --panel: #f8fafc;
+  --link: #1a1a1a;
+  --border: #ddd6c8;
+  --panel: #f7f4ee;
   --pass: #1a1a1a;
   --fail: #b91c1c;
   background: #ffffff;
   color: var(--fg);
   border: 1px solid var(--border);
-  border-radius: 12px;
-  box-shadow: 0 1px 3px 0 rgb(15 23 42 / 0.05);
-  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+  border-radius: 2px;
 }
 
 .skip-link {
@@ -41,15 +39,13 @@
   left: 0.5rem;
   top: -3rem;
   padding: 0.5rem 0.875rem;
-  border-radius: 0.375rem;
+  border-radius: 2px;
   background: var(--bg);
   color: var(--link);
   border: 1px solid var(--border);
-  box-shadow: 0 4px 6px -1px rgb(15 23 42 / 0.1);
   font-weight: 500;
   font-size: 0.875rem;
   z-index: 50;
-  transition: top 0.15s ease;
 }
 
 .skip-link:focus {
@@ -61,64 +57,45 @@
   outline-offset: 2px;
 }
 
-.site-header {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  background: color-mix(in srgb, var(--bg) 92%, transparent);
-  box-shadow: 0 1px 3px rgb(15 23 42 / 0.04);
-}
-
 .site-header,
 .site-footer {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.75rem 1.5rem;
-  align-items: center;
+  gap: 0.5rem 1.5rem;
+  align-items: baseline;
   justify-content: space-between;
   max-width: 76rem;
   margin: 0 auto;
-  padding: 0.875rem 1.5rem;
+  padding: 1.5rem 1.5rem 0.875rem;
+}
+
+.site-header {
+  border-bottom: 3px double var(--fg);
 }
 
 .site-footer {
   margin-top: 3.5rem;
-  border-top: 1px solid var(--border);
+  padding-bottom: 3rem;
+  border-top: 1px solid var(--fg);
   font-size: 0.875rem;
   color: var(--muted);
 }
 
 .brand {
-  font-size: 1.25rem;
-  font-weight: 800;
-  letter-spacing: -0.02em;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
+  font-weight: 700;
+  line-height: 1;
   color: var(--fg);
   text-decoration: none;
+}
+
+.brand__icon {
+  display: none;
 }
 
 .site-header a:not(.brand) {
-  display: inline-flex;
-  align-items: center;
-  padding: 0.375rem 0.875rem;
-  border-radius: 9999px;
-  border: 1px solid var(--border);
-  background: var(--bg);
-  color: var(--fg);
-  font-size: 0.875rem;
-  font-weight: 500;
-  text-decoration: none;
-  transition: all 0.15s ease;
-}
-
-.site-header a:not(.brand):hover {
-  border-color: var(--link);
-  background: var(--hover);
-  color: var(--link);
-  text-decoration: none;
+  font-size: 0.9375rem;
 }
 
 main.method {
@@ -127,20 +104,23 @@ main.method {
 }
 
 main.method h1 {
-  font-size: clamp(1.8rem, 4vw, 2.5rem);
-  font-weight: 800;
-  letter-spacing: -0.03em;
-  line-height: 1.2;
+  font-family: var(--font-display);
+  font-size: clamp(2rem, 4.5vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -0.015em;
+  line-height: 1.1;
   max-width: 48rem;
   margin: 0 0 1rem;
 }
 
 main.method h2 {
-  font-size: 1.5rem;
+  font-family: var(--font-display);
+  font-size: 1.75rem;
   font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.3;
+  line-height: 1.2;
   margin: 3.5rem 0 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--fg);
   scroll-margin-top: 4.5rem;
 }
 
@@ -152,16 +132,17 @@ main.method h2 {
 }
 
 .lede {
-  font-size: 1.1875rem;
-  line-height: 1.6;
-  color: var(--muted);
+  font-family: var(--font-display);
+  font-size: 1.3125rem;
+  line-height: 1.5;
+  color: var(--fg);
   margin-bottom: 1.5rem;
 }
 
 #method-status {
   font-size: 0.9375rem;
   padding: 0.625rem 0.875rem;
-  border-radius: 0.5rem;
+  border-radius: 2px;
   background: var(--panel);
   border: 1px solid var(--border);
   margin-bottom: 1.5rem;
@@ -170,10 +151,9 @@ main.method h2 {
 .toc {
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 2px;
   padding: 1.25rem 1.5rem;
   margin: 2rem 0;
-  box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
 }
 
 .toc ol {
@@ -189,7 +169,6 @@ main.method h2 {
 
 .toc a {
   text-decoration: none;
-  font-weight: 500;
 }
 
 .toc a:hover {
@@ -247,7 +226,6 @@ main.method h2 {
   height: 8px;
   border-radius: 50%;
   background: var(--link);
-  box-shadow: 0 0 0 2px var(--bg);
 }
 
 .caveats li {
@@ -258,7 +236,7 @@ main.method h2 {
 .notice {
   background: var(--notice-bg);
   border-left: 4px solid var(--notice-edge);
-  border-radius: 0 0.5rem 0.5rem 0;
+  border-radius: 0;
   padding: 0.75rem 1rem;
   margin: 1.25rem 0;
   font-size: 0.9375rem;
@@ -269,7 +247,7 @@ main.method h2 {
   margin: 0 0 0.5rem;
   padding: 0.2rem 0.625rem;
   border: 1px solid var(--notice-edge);
-  border-radius: 999px;
+  border-radius: 2px;
   background: var(--notice-bg);
   font-size: 0.8125rem;
   font-weight: 600;
@@ -304,7 +282,7 @@ main.method h2 {
 .legend-bar {
   padding: 0.625rem 0.875rem;
   margin-bottom: 0.875rem;
-  border-radius: 0.5rem;
+  border-radius: 2px;
   background: var(--panel);
 }
 
@@ -399,7 +377,7 @@ main.method h2 {
   max-width: 100%;
   overflow-x: auto;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 2px;
 }
 
 table.data {
@@ -462,10 +440,9 @@ table.data .num {
   max-width: 48rem;
   background: var(--panel);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 2px;
   padding: 1rem 1.25rem;
   margin: 1.5rem 0;
-  box-shadow: 0 1px 3px 0 rgb(15 23 42 / 0.04);
 }
 
 .decision p {
