@@ -578,7 +578,7 @@ export async function startApp(doc = document) {
    */
   async function loadPoints(id, polygon) {
     const focus = focusMonth();
-    const label = `Fires counted, ${monthName(focus)}${focus === latest ? " so far" : ""}`;
+    const label = `Fires detected, ${monthName(focus)}${focus === latest ? " so far" : ""}`;
     const request = { aoi: polygon, start: focus, end: focus, series: /** @type {const} */ ("harmonized") };
     map.setPoints(null, { label: `${label}: loading…` }).catch(() => {});
     try {

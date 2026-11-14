@@ -20,7 +20,7 @@ import { readBody } from "./http.js";
  *   points: number[], date: number[], time: number[], satellite: number[],
  *   frp: number[], weight: (number | null)[], night: number[],
  * }} PointColumns `points` is flat [lon, lat, ...]; the others hold one value per point
- * @typedef {PointColumns & { month_start: string, month_end: string, total: number, satellites: readonly string[] }} PointsBody
+ * @typedef {PointColumns & { month_start: string, month_end: string, total: number, counted: number, satellites: readonly string[] }} PointsBody
  */
 
 // MapLibre draws this many circles smoothly on a laptop; Black Summer's December alone has
@@ -90,6 +90,7 @@ const pointsBody = (start, end, columns, max) => ({
   month_start: start,
   month_end: end,
   total: columns.date.length,
+  counted: round(columns.weight.reduce((sum, weight) => sum + (weight ?? 0), 0), 1),
   satellites: SATELLITES,
   ...thinPoints(columns, max),
 });

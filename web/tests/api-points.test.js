@@ -3,6 +3,7 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, it } from "node:test";
+import { POST as postCalendar } from "../api/calendar.js";
 import { POST as postExport } from "../api/export/hotspots.js";
 import { POST as postPoints } from "../api/points.js";
 import { DataSource, resetDataSource } from "../lib/data/source.js";
@@ -69,13 +70,16 @@ describe("POST /api/points", () => {
         assert.equal(response.status, 200);
         assert.equal(response.headers.get("x-hotornot-data"), null);
         const answer = await response.json();
-        assert.deepEqual(Object.keys(answer).sort(), ["date", "frp", "month_end", "month_start", "night", "points", "satellite", "satellites", "time", "total", "weight"]);
+        assert.deepEqual(Object.keys(answer).sort(), ["counted", "date", "frp", "month_end", "month_start", "night", "points", "satellite", "satellites", "time", "total", "weight"]);
         assert.deepEqual([answer.month_start, answer.month_end], [start, end]);
         assert.deepEqual(answer.satellites, SATELLITES);
         for (const key of ["date", "time", "satellite", "frp", "weight", "night"]) assert.equal(answer[key].length, answer.total, key);
         const expected = await expectedPoints(body(aoi, start, end));
         assert.equal(answer.total, expected.length);
         assert.deepEqual(sorted(rowsOf(answer)), sorted(expected));
+        const calendar = await (await postCalendar(post(body(aoi, start, end)))).json();
+        const calendarTotal = calendar.months.reduce((sum, month) => sum + (month.value ?? 0), 0);
+        assert.ok(Math.abs(answer.counted - calendarTotal) <= 0.05 + 1e-4 * calendar.months.length, `${start}..${end}: dots add up to ${answer.counted}, the calendar to ${calendarTotal}`);
         checked += expected.length;
       }
     }

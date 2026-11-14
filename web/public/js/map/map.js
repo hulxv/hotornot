@@ -15,7 +15,7 @@ import {
   validateBox,
 } from "./geometry.js";
 import { PALESTINE_POINT, labelPatches, palestineLabelLayer } from "./labels.js";
-import { describePoint, satelliteViewUrl } from "./point-info.js";
+import { describePoint, pointsSummary, satelliteViewUrl } from "./point-info.js";
 import { EMPTY, HATCH_IMAGE, MAP_COLORS as COLORS, REGION_LABEL_LAYER, basemapPaint, fallbackStyle, overlayLayers, overlaySources } from "./layers.js";
 
 /**
@@ -184,7 +184,7 @@ function buildPanel(container, regions, prefix) {
   const status = el("p", { class: "hon-map__status", role: "status", text: MESSAGES.hint });
   const overviewButton = el("button", { type: "button", class: "hon-map__overview", title: "Show all four regions", text: "All regions" });
   const canvas = el("div", { class: "hon-map__canvas" });
-  const pointsLabel = el("span", { text: "Fires counted" });
+  const pointsLabel = el("span", { text: "Fires detected" });
   const pointsCount = el("span", { class: "hon-map__count" });
   const countedCount = el("span", { class: "hon-map__count" });
   const uncoveredCount = el("span", { class: "hon-map__count" });
@@ -645,11 +645,12 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
 
   /**
    * Draws fire detections from an /api/points body, or clears them with null. `label` names what
-   * they are, for example "Fires counted, November 2026 so far".
-   * @param {(import("./point-info.js").PointsData & { total: number }) | null} data
+   * they are, for example "Fires detected, November 2026 so far". The legend ties the number of
+   * dots to the calendar's number: VIIRS dots count less than one each on its scale.
+   * @param {(import("./point-info.js").PointsData & { total: number, counted: number }) | null} data
    * @param {{ label?: string }} [info]
    */
-  async function setPoints(data, { label = "Fires counted" } = {}) {
+  async function setPoints(data, { label = "Fires detected" } = {}) {
     const call = ++pointsCall;
     await loaded;
     if (call !== pointsCall) return;
@@ -657,10 +658,7 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
     pointsData = data;
     map.getSource("hon-points")?.setData(pointsToGeoJSON(data ? data.points : null));
     ui.pointsLabel.textContent = label;
-    const shown = data ? data.points.length / 2 : 0;
-    if (!data) ui.pointsCount.textContent = "";
-    else if (data.total > shown) ui.pointsCount.textContent = ` (${shown.toLocaleString("en-US")} of ${data.total.toLocaleString("en-US")} shown)`;
-    else ui.pointsCount.textContent = ` (${shown.toLocaleString("en-US")})`;
+    ui.pointsCount.textContent = data ? `: ${pointsSummary(data)}` : "";
   }
 
   /**

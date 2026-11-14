@@ -577,7 +577,7 @@ describe("pointsToGeoJSON", () => {
 });
 
 describe("fire-dot tooltips", async () => {
-  const { describePoint, formatPlace, formatWeight, formatWhen, satelliteViewUrl } = await import("../public/js/map/point-info.js");
+  const { describePoint, formatPlace, formatWeight, formatWhen, pointsSummary, satelliteViewUrl } = await import("../public/js/map/point-info.js");
   const data = {
     satellites: ["Terra", "Aqua", "S-NPP", "NOAA-20"],
     points: [-114.9376, 32.5386, 31.1, -30.25],
@@ -610,6 +610,10 @@ describe("fire-dot tooltips", async () => {
     assert.equal(formatWeight(null, "S-NPP"), null);
     assert.equal(formatWhen(20191231, 5), "31 December 2019, 00:05 UTC");
     assert.equal(formatPlace(0, 0), "0.000° N, 0.000° E");
+    assert.equal(pointsSummary({ total: 1344, counted: 462.8, points: new Array(2688) }), "1,344 dots, which add up to 463 in the calendar");
+    assert.equal(pointsSummary({ total: 131028, counted: 31590.2, points: new Array(120000) }), "131,028 dots (60,000 drawn), which add up to 31,590 in the calendar");
+    assert.equal(pointsSummary({ total: 52, counted: 52, points: new Array(104) }), "52 dots, each counts as one in the calendar");
+    assert.equal(pointsSummary({ total: 1, counted: 0.4, points: [0, 0] }), "1 dot, which add up to 0 in the calendar");
     assert.equal(satelliteViewUrl(31.1, 30.7), "https://www.google.com/maps/@?api=1&map_action=map&center=30.7,31.1&zoom=15&basemap=satellite");
   });
 });

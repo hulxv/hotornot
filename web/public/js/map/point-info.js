@@ -69,3 +69,17 @@ export function describePoint(data, i) {
  */
 export const satelliteViewUrl = (lon, lat) =>
   `https://www.google.com/maps/@?api=1&map_action=map&center=${lat},${lon}&zoom=15&basemap=satellite`;
+
+const whole = (n) => Math.round(n).toLocaleString("en-US");
+
+/**
+ * The legend's count: how many dots, what they add up to on the calendar's scale, and whether
+ * a busy month is thinned. "1,344 dots, which add up to 463 in the calendar".
+ * @param {{ total: number, counted: number, points: number[] }} data
+ */
+export function pointsSummary({ total, counted, points }) {
+  const dots = `${whole(total)} ${total === 1 ? "dot" : "dots"}`;
+  const sum = Math.round(counted) === total ? "each counts as one in the calendar" : `which add up to ${whole(counted)} in the calendar`;
+  const shown = points.length / 2;
+  return total > shown ? `${dots} (${whole(shown)} drawn), ${sum}` : `${dots}, ${sum}`;
+}
