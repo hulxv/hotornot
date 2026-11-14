@@ -584,7 +584,7 @@ export async function startApp(doc = document) {
     try {
       const result = await pointSets.get(JSON.stringify(request), () => postPoints(request));
       if (id !== loadId) return;
-      await map.setPoints(result.body.points, { label, total: result.body.total });
+      await map.setPoints(result.body, { label });
     } catch (error) {
       if (id === loadId) map.setPoints(null, { label: `${label}: could not load` }).catch(() => {});
       console.warn("the map could not load the fire points:", error);

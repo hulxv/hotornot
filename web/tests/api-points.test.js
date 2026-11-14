@@ -6,9 +6,9 @@ import { describe, it } from "node:test";
 import { POST as postExport } from "../api/export/hotspots.js";
 import { POST as postPoints } from "../api/points.js";
 import { DataSource, resetDataSource } from "../lib/data/source.js";
-import { handlePoints, thinPoints } from "../lib/server/points.js";
+import { handlePoints, thinIndices, thinPoints } from "../lib/server/points.js";
 import { boxToPolygon } from "../public/shared/aoi.js";
-import { HOTSPOT_EXPORT_COLUMNS, checkApiError } from "../public/shared/contracts.js";
+import { HOTSPOT_EXPORT_COLUMNS, SATELLITES, checkApiError } from "../public/shared/contracts.js";
 import { fixtureDir } from "./fixtures/fixture.js";
 
 process.env.DATA_BASE_URL = fixtureDir();
@@ -22,18 +22,42 @@ const post = (body) =>
   new Request("http://localhost/api", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
 const body = (aoi, start, end = start) => ({ aoi, start, end, series: "harmonized" });
 
-/** The export's in-series hotspots for the same body, as [lon, lat] pairs. */
-async function expectedPairs(request) {
+/** The export's in-series hotspots for the same body, described the way /api/points describes them. */
+async function expectedPoints(request) {
   const text = await (await postExport(post(request))).text();
   const [, ...lines] = text.trimEnd().split("\n");
   const at = (name) => HOTSPOT_EXPORT_COLUMNS.indexOf(name);
   return lines
     .map((line) => line.split(","))
     .filter((f) => f[at("in_series")] === "true")
-    .map((f) => [round4(Number(f[at("lon")])), round4(Number(f[at("lat")]))]);
+    .map((f) => {
+      const utc = f[at("acq_utc")];
+      return [
+        round4(Number(f[at("lon")])),
+        round4(Number(f[at("lat")])),
+        Number(utc.slice(0, 10).replaceAll("-", "")),
+        Number(utc.slice(11, 13) + utc.slice(14, 16)),
+        SATELLITES.indexOf(f[at("satellite")]),
+        Math.round(Number(f[at("frp_mw")]) * 10) / 10,
+        f[at("weight")] === "" ? null : round4(Number(f[at("weight")])),
+        f[at("daynight")] === "N" ? 1 : 0,
+      ];
+    });
 }
 
-const pairs = (flat) => Array.from({ length: flat.length / 2 }, (_, i) => [flat[2 * i], flat[2 * i + 1]]);
+/** One row per point from the response's columns, in the order expectedPoints builds. */
+const rowsOf = (answer) =>
+  answer.date.map((date, i) => [
+    answer.points[2 * i],
+    answer.points[2 * i + 1],
+    date,
+    answer.time[i],
+    answer.satellite[i],
+    answer.frp[i],
+    answer.weight[i],
+    answer.night[i],
+  ]);
+
 const sorted = (list) => list.map((p) => p.join(",")).sort();
 
 describe("POST /api/points", () => {
@@ -45,11 +69,13 @@ describe("POST /api/points", () => {
         assert.equal(response.status, 200);
         assert.equal(response.headers.get("x-hotornot-data"), null);
         const answer = await response.json();
-        assert.deepEqual(Object.keys(answer).sort(), ["month_end", "month_start", "points", "total"]);
+        assert.deepEqual(Object.keys(answer).sort(), ["date", "frp", "month_end", "month_start", "night", "points", "satellite", "satellites", "time", "total", "weight"]);
         assert.deepEqual([answer.month_start, answer.month_end], [start, end]);
-        const expected = await expectedPairs(body(aoi, start, end));
+        assert.deepEqual(answer.satellites, SATELLITES);
+        for (const key of ["date", "time", "satellite", "frp", "weight", "night"]) assert.equal(answer[key].length, answer.total, key);
+        const expected = await expectedPoints(body(aoi, start, end));
         assert.equal(answer.total, expected.length);
-        assert.deepEqual(sorted(pairs(answer.points)), sorted(expected));
+        assert.deepEqual(sorted(rowsOf(answer)), sorted(expected));
         checked += expected.length;
       }
     }
@@ -64,8 +90,9 @@ describe("POST /api/points", () => {
     const capped = await (await handlePoints(post(request), { source, maxPoints: 20 })).json();
     assert.equal(capped.total, full.total);
     assert.equal(capped.points.length, 40);
-    const all = new Set(pairs(full.points).map((p) => p.join(",")));
-    for (const p of pairs(capped.points)) assert.ok(all.has(p.join(",")));
+    for (const key of ["date", "time", "satellite", "frp", "weight", "night"]) assert.equal(capped[key].length, 20, key);
+    const all = new Set(rowsOf(full).map((row) => row.join(",")));
+    for (const row of rowsOf(capped)) assert.ok(all.has(row.join(",")), "a thinned point keeps its own details");
     source.close();
   });
 
@@ -83,15 +110,18 @@ describe("POST /api/points", () => {
     assert.equal(response.headers.get("x-hotornot-data"), "mock");
     const answer = await response.json();
     assert.equal(answer.points.length, answer.total * 2);
+    assert.equal(answer.date.length, answer.total);
     source.close();
   });
 });
 
-describe("thinPoints", () => {
-  it("keeps everything under the cap and evenly spaced points over it", () => {
-    const flat = Array.from({ length: 20 }, (_, i) => i);
-    assert.equal(thinPoints(flat, 10), flat);
-    assert.deepEqual(thinPoints(flat, 5), [0, 1, 4, 5, 8, 9, 12, 13, 16, 17]);
-    assert.deepEqual(thinPoints(flat, 3), [0, 1, 6, 7, 12, 13]);
+describe("thinIndices and thinPoints", () => {
+  it("keeps everything under the cap and evenly spaced points over it, with their details", () => {
+    assert.deepEqual(thinIndices(4, 10), [0, 1, 2, 3]);
+    assert.deepEqual(thinIndices(10, 5), [0, 2, 4, 6, 8]);
+    assert.deepEqual(thinIndices(10, 3), [0, 3, 6]);
+    const columns = { points: [0, 0, 1, 1, 2, 2, 3, 3], date: [1, 2, 3, 4], time: [5, 6, 7, 8], satellite: [0, 1, 2, 3], frp: [1, 2, 3, 4], weight: [0.1, null, 0.3, 0.4], night: [0, 1, 0, 1] };
+    assert.equal(thinPoints(columns, 4), columns);
+    assert.deepEqual(thinPoints(columns, 2), { points: [0, 0, 2, 2], date: [1, 3], time: [5, 7], satellite: [0, 2], frp: [1, 3], weight: [0.1, 0.3], night: [0, 0] });
   });
 });

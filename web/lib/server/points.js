@@ -1,5 +1,5 @@
 import { tileOf } from "../../public/shared/grid.js";
-import { yearMonthToYm } from "../../public/shared/contracts.js";
+import { SATELLITES, yearMonthToYm } from "../../public/shared/contracts.js";
 import { mocks, resolveMockRegion } from "../../mocks/index.js";
 import {
   LruCache,
@@ -14,32 +14,67 @@ import {
 import { readBody } from "./http.js";
 
 /** @typedef {import("../data/source.js").DataSource} DataSource */
-/** @typedef {{ month_start: string, month_end: string, total: number, points: number[] }} PointsBody */
+/** @typedef {import("../../public/shared/contracts.js").TileRow} TileRow */
+/**
+ * @typedef {{
+ *   points: number[], date: number[], time: number[], satellite: number[],
+ *   frp: number[], weight: (number | null)[], night: number[],
+ * }} PointColumns `points` is flat [lon, lat, ...]; the others hold one value per point
+ * @typedef {PointColumns & { month_start: string, month_end: string, total: number, satellites: readonly string[] }} PointsBody
+ */
 
 // MapLibre draws this many circles smoothly on a laptop; Black Summer's December alone has
-// about 270,000 hotspots in south-east Australia.
+// about 230,000 counted hotspots in south-east Australia.
 export const MAX_POINTS = 60_000;
 
-// One month of a region takes 0.3 to 4 s to read from its tiles, so recent answers are kept.
+// One month of a region takes 0.3 to 7 s to read from its tiles, so recent answers are kept.
 const pointsCache = new LruCache(16);
 
-const round4 = (value) => Math.round(value * 1e4) / 1e4;
+const round = (value, decimals) => Math.round(value * 10 ** decimals) / 10 ** decimals;
+
+const emptyColumns = () => ({ points: [], date: [], time: [], satellite: [], frp: [], weight: [], night: [] });
 
 /**
- * Flat [lon, lat, lon, lat, ...] of at most `max` points, every k-th one in input order when
- * there are more, so a thinned map keeps the same spread.
- * @param {number[]} flat
+ * Appends one hotspot. Date and time are integers (20261104 and 849 for 2026-11-04T08:49Z), and
+ * the satellite is its index in `SATELLITES`.
+ * @param {PointColumns} columns
+ * @param {Pick<TileRow, "lon" | "lat" | "acq_utc" | "satellite" | "frp_mw" | "weight" | "daynight">} row
+ */
+function addPoint(columns, row) {
+  columns.points.push(round(row.lon, 4), round(row.lat, 4));
+  columns.date.push(Number(row.acq_utc.slice(0, 10).replaceAll("-", "")));
+  columns.time.push(Number(row.acq_utc.slice(11, 13) + row.acq_utc.slice(14, 16)));
+  columns.satellite.push(SATELLITES.indexOf(row.satellite));
+  columns.frp.push(round(row.frp_mw, 1));
+  columns.weight.push(row.weight === null ? null : round(row.weight, 4));
+  columns.night.push(row.daynight === "N" ? 1 : 0);
+}
+
+/**
+ * Indices of at most `max` of `count` points, every k-th one in order when there are more, so a
+ * thinned map keeps the same spread.
+ * @param {number} count
  * @param {number} max
  */
-export function thinPoints(flat, max) {
-  const count = flat.length / 2;
-  if (count <= max) return flat;
+export function thinIndices(count, max) {
+  if (count <= max) return Array.from({ length: count }, (_, i) => i);
   const step = count / max;
-  const out = new Array(max * 2);
-  for (let i = 0; i < max; i += 1) {
-    const from = Math.floor(i * step) * 2;
-    out[i * 2] = flat[from];
-    out[i * 2 + 1] = flat[from + 1];
+  return Array.from({ length: max }, (_, i) => Math.floor(i * step));
+}
+
+/**
+ * @param {PointColumns} columns
+ * @param {number} max
+ * @returns {PointColumns}
+ */
+export function thinPoints(columns, max) {
+  const count = columns.date.length;
+  if (count <= max) return columns;
+  const keep = thinIndices(count, max);
+  const out = emptyColumns();
+  for (const i of keep) {
+    out.points.push(columns.points[2 * i], columns.points[2 * i + 1]);
+    for (const key of /** @type {const} */ (["date", "time", "satellite", "frp", "weight", "night"])) out[key].push(columns[key][i]);
   }
   return out;
 }
@@ -47,15 +82,21 @@ export function thinPoints(flat, max) {
 /**
  * @param {string} start
  * @param {string} end
- * @param {number[]} flat every point, before thinning
+ * @param {PointColumns} columns every point, before thinning
  * @param {number} max
  * @returns {PointsBody}
  */
-const pointsBody = (start, end, flat, max) => ({ month_start: start, month_end: end, total: flat.length / 2, points: thinPoints(flat, max) });
+const pointsBody = (start, end, columns, max) => ({
+  month_start: start,
+  month_end: end,
+  total: columns.date.length,
+  satellites: SATELLITES,
+  ...thinPoints(columns, max),
+});
 
 /**
- * `POST /api/points`: where the hotspots counted in the harmonized series (`in_series`) were, for
- * the calendar body's area and months, so the map can draw them.
+ * `POST /api/points`: where and when the hotspots counted in the harmonized series (`in_series`)
+ * were, for the calendar body's area and months, so the map can draw them and describe each.
  * @param {Request} request
  * @param {{ source?: DataSource, maxPoints?: number }} [options]
  */
@@ -68,19 +109,21 @@ export async function handlePoints(request, { source, maxPoints = MAX_POINTS } =
     if (!serving) {
       const region = resolveMockRegion(aoi);
       if (!region.ok) return region.response;
-      const flat = mocks.hotspotsNile
-        .filter((row) => row.in_series && row.acq_date.slice(0, 7) >= start && row.acq_date.slice(0, 7) <= end)
-        .flatMap((row) => [round4(row.lon), round4(row.lat)]);
-      return Response.json(pointsBody(start, end, flat, maxPoints), { headers: MOCK_HEADERS });
+      const columns = emptyColumns();
+      for (const row of mocks.hotspotsNile) {
+        const month = row.acq_date.slice(0, 7);
+        if (row.in_series && month >= start && month <= end) addPoint(columns, row);
+      }
+      return Response.json(pointsBody(start, end, columns, maxPoints), { headers: MOCK_HEADERS });
     }
     const resolved = resolveAoi(serving, aoi);
     if (!resolved.ok) return aoiErrorResponse(resolved);
     const regionId = resolved.region.id;
     const cellIds = resolved.coveredCells;
     const key = calendarCacheKey(serving.version, regionId, cellIds, { start, end, series: "points" });
-    let flat = /** @type {number[] | undefined} */ (pointsCache.get(key));
-    if (!flat) {
-      flat = [];
+    let columns = /** @type {PointColumns | undefined} */ (pointsCache.get(key));
+    if (!columns) {
+      columns = emptyColumns();
       const rows = serving.tileRows({
         regionId,
         tileIds: new Set(cellIds.map(tileOf)),
@@ -88,9 +131,9 @@ export async function handlePoints(request, { source, maxPoints = MAX_POINTS } =
         ymStart: yearMonthToYm(start),
         ymEnd: yearMonthToYm(end),
       });
-      for await (const row of rows) if (row.in_series) flat.push(round4(row.lon), round4(row.lat));
-      pointsCache.set(key, flat);
+      for await (const row of rows) if (row.in_series) addPoint(columns, row);
+      pointsCache.set(key, columns);
     }
-    return Response.json(pointsBody(start, end, flat, maxPoints));
+    return Response.json(pointsBody(start, end, columns, maxPoints));
   });
 }

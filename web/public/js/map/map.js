@@ -15,6 +15,7 @@ import {
   validateBox,
 } from "./geometry.js";
 import { PALESTINE_POINT, labelPatches, palestineLabelLayer } from "./labels.js";
+import { describePoint, satelliteViewUrl } from "./point-info.js";
 import { EMPTY, HATCH_IMAGE, MAP_COLORS as COLORS, REGION_LABEL_LAYER, basemapPaint, fallbackStyle, overlayLayers, overlaySources } from "./layers.js";
 
 /**
@@ -48,6 +49,8 @@ const REGION_PADDING = 48;
 const OVERVIEW_PADDING = { top: 40, bottom: 24, left: 110, right: 110 };
 // Clicks this close to a box still pick it, so the small boxes of the world view are easy to hit.
 const CLICK_SLOP_PX = 10;
+// A fire dot is 2 to 6 px across, so the pointer counts as on it within this many pixels.
+const POINT_HIT_PX = 5;
 
 const FIELD_LABELS = {
   west: "West (longitude)",
@@ -295,6 +298,13 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
   let styleLoaded = false;
   let offline = false;
   let pointing = false;
+  /** @type {import("./point-info.js").PointsData | null} */
+  let pointsData = null;
+  /** @type {any} */
+  let popup = null;
+  let popupPinned = false;
+  /** @type {number | null} */
+  let popupIndex = null;
 
   const loaded = new Promise((resolve) => map.once("load", resolve)).then(() => {
     addLayers();
@@ -322,6 +332,9 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
   map.on("resize", fitMinZoom);
   map.on("click", onMapClick);
   map.on("mousemove", onMapHover);
+  map.on("mouseout", () => {
+    if (!popupPinned) closePopup();
+  });
 
   function addLayers() {
     const styleLayers = map.getStyle().layers;
@@ -393,6 +406,15 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
 
   function onMapClick(event) {
     if (!ready || drawing) return;
+    const fire = pointAt(event.point);
+    if (fire !== null) {
+      showPoint(fire, true);
+      return;
+    }
+    if (popupPinned) {
+      closePopup();
+      return;
+    }
     const click = clickAction(event);
     if (click.action === "outside") announce(MESSAGES.noData, "notice");
     else if (click.action === "select") selectRegion(click.regionId);
@@ -404,6 +426,14 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
 
   function onMapHover(event) {
     if (!ready || drawing) return;
+    const fire = pointAt(event.point);
+    if (fire !== null) {
+      if (!popupPinned) showPoint(fire, false);
+      map.getCanvas().style.cursor = "pointer";
+      pointing = true;
+      return;
+    }
+    if (!popupPinned) closePopup();
     const action = clickAction(event).action;
     const pickable = action === "select" || action === "zoom";
     // terra-draw sets its own cursors over the area, so only undo a pointer this code set.
@@ -614,21 +644,76 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
   }
 
   /**
-   * Draws fire detections, or clears them with null. `label` names what they are, for example
-   * "Fires counted, November 2026 so far"; `total` is the count before any thinning.
-   * @param {number[] | null} flat [lon, lat, lon, lat, ...]
-   * @param {{ label?: string, total?: number }} [info]
+   * Draws fire detections from an /api/points body, or clears them with null. `label` names what
+   * they are, for example "Fires counted, November 2026 so far".
+   * @param {(import("./point-info.js").PointsData & { total: number }) | null} data
+   * @param {{ label?: string }} [info]
    */
-  async function setPoints(flat, { label = "Fires counted", total } = {}) {
+  async function setPoints(data, { label = "Fires counted" } = {}) {
     const call = ++pointsCall;
     await loaded;
     if (call !== pointsCall) return;
-    map.getSource("hon-points")?.setData(pointsToGeoJSON(flat));
+    closePopup();
+    pointsData = data;
+    map.getSource("hon-points")?.setData(pointsToGeoJSON(data ? data.points : null));
     ui.pointsLabel.textContent = label;
-    const shown = flat ? flat.length / 2 : 0;
-    if (!flat) ui.pointsCount.textContent = "";
-    else if (total !== undefined && total > shown) ui.pointsCount.textContent = ` (${shown.toLocaleString("en-US")} of ${total.toLocaleString("en-US")} shown)`;
+    const shown = data ? data.points.length / 2 : 0;
+    if (!data) ui.pointsCount.textContent = "";
+    else if (data.total > shown) ui.pointsCount.textContent = ` (${shown.toLocaleString("en-US")} of ${data.total.toLocaleString("en-US")} shown)`;
     else ui.pointsCount.textContent = ` (${shown.toLocaleString("en-US")})`;
+  }
+
+  /**
+   * The index of the fire dot under the pointer, or null.
+   * @param {{ x: number, y: number }} point
+   */
+  function pointAt(point) {
+    if (!pointsData) return null;
+    const box = [[point.x - POINT_HIT_PX, point.y - POINT_HIT_PX], [point.x + POINT_HIT_PX, point.y + POINT_HIT_PX]];
+    const [feature] = map.queryRenderedFeatures(box, { layers: ["hon-points"] });
+    return feature ? Number(feature.properties.i) : null;
+  }
+
+  /**
+   * The tooltip for one fire dot. A pinned one (from a click) stays until closed and links to a
+   * satellite view of the spot; a hover one follows the pointer.
+   * @param {number} i
+   * @param {boolean} pin
+   */
+  function showPoint(i, pin) {
+    if (!pointsData || (popupIndex === i && popupPinned === pin)) return;
+    closePopup();
+    const info = describePoint(pointsData, i);
+    const content = el(
+      "div",
+      { class: "hon-point" },
+      el("p", { class: "hon-point__title", text: info.title }),
+      ...info.lines.map((line) => el("p", { text: line })),
+      ...(pin ? [el("a", { href: satelliteViewUrl(info.lon, info.lat), target: "_blank", rel: "noopener", text: "Satellite view of this spot" })] : []),
+    );
+    popup = new maplibregl.Popup({ closeButton: pin, closeOnClick: false, offset: 10, maxWidth: "17rem", className: "hon-popup" })
+      .setLngLat([info.lon, info.lat])
+      .setDOMContent(content)
+      .addTo(map);
+    popupIndex = i;
+    popupPinned = pin;
+    if (pin) {
+      const shown = popup;
+      shown.on("close", () => {
+        if (popup !== shown) return;
+        popup = null;
+        popupIndex = null;
+        popupPinned = false;
+      });
+    }
+  }
+
+  function closePopup() {
+    const open = popup;
+    popup = null;
+    popupIndex = null;
+    popupPinned = false;
+    open?.remove();
   }
 
   /** Removes the area and the overlay without calling onAoiChange. */

@@ -571,6 +571,45 @@ describe("pointsToGeoJSON", () => {
   it("turns a flat lon, lat array into point features, and null into an empty collection", () => {
     const collection = pointsToGeoJSON([31.1, 30.7, -120.5, 38.25]);
     assert.deepEqual(collection.features.map((feature) => feature.geometry.coordinates), [[31.1, 30.7], [-120.5, 38.25]]);
+    assert.deepEqual(collection.features.map((feature) => feature.properties.i), [0, 1]);
     assert.deepEqual(pointsToGeoJSON(null), { type: "FeatureCollection", features: [] });
+  });
+});
+
+describe("fire-dot tooltips", async () => {
+  const { describePoint, formatPlace, formatWeight, formatWhen, satelliteViewUrl } = await import("../public/js/map/point-info.js");
+  const data = {
+    satellites: ["Terra", "Aqua", "S-NPP", "NOAA-20"],
+    points: [-114.9376, 32.5386, 31.1, -30.25],
+    date: [20261104, 20030301],
+    time: [849, 1405],
+    satellite: [3, 0],
+    frp: [0.4, 25.3],
+    weight: [0.002, 1],
+    night: [1, 0],
+  };
+
+  it("describes a VIIRS detection in plain words", () => {
+    assert.deepEqual(describePoint(data, 0), {
+      lon: -114.9376,
+      lat: 32.5386,
+      title: "4 November 2026, 08:49 UTC",
+      lines: ["NOAA-20 (VIIRS), night pass", "Fire power 0.4 MW", "Counts as 0.002 of a MODIS detection", "32.539° N, 114.938° W"],
+    });
+  });
+
+  it("says a MODIS detection is the reference and counts 1", () => {
+    assert.deepEqual(describePoint(data, 1).lines, ["Terra (MODIS), day pass", "Fire power 25.3 MW", "Counts as 1 detection (MODIS is the reference)", "30.250° S, 31.100° E"]);
+  });
+
+  it("formats weights, times and places", () => {
+    assert.equal(formatWeight(0.41, "S-NPP"), "Counts as 0.41 of a MODIS detection");
+    assert.equal(formatWeight(1.04, "S-NPP"), "Counts as 1 MODIS detection");
+    assert.equal(formatWeight(2.6, "NOAA-20"), "Counts as 2.6 MODIS detections");
+    assert.equal(formatWeight(0.0004, "S-NPP"), "Counts as less than 0.001 of a MODIS detection");
+    assert.equal(formatWeight(null, "S-NPP"), null);
+    assert.equal(formatWhen(20191231, 5), "31 December 2019, 00:05 UTC");
+    assert.equal(formatPlace(0, 0), "0.000° N, 0.000° E");
+    assert.equal(satelliteViewUrl(31.1, 30.7), "https://www.google.com/maps/@?api=1&map_action=map&center=30.7,31.1&zoom=15&basemap=satellite");
   });
 });

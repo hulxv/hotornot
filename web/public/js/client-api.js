@@ -126,7 +126,7 @@ export async function postCurrentMonth(aoi) {
 /**
  * Where the fires counted in the series were, for the map.
  * @param {CalendarRequest} body
- * @returns {Promise<{ body: { month_start: string, month_end: string, total: number, points: number[] }, mock: boolean }>}
+ * @returns {Promise<{ body: import("./map/point-info.js").PointsData & { month_start: string, month_end: string, total: number }, mock: boolean }>}
  */
 export async function postPoints(body) {
   const response = await post("/api/points", body);
