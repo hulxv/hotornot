@@ -153,10 +153,14 @@ p {
 
 /* Layout: a place sidebar, the verdict beside the map, the calendar under both. */
 
+/* base.css gives <main> a reading-column width for the method page; the dashboard is full width. */
 .page {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   align-items: start;
+  max-width: none;
+  margin: 0;
+  padding: 0;
 }
 
 @media (min-width: 48rem) {
