@@ -786,7 +786,7 @@ body {
 
 .map {
   flex: 1 1 auto;
-  min-height: clamp(24rem, 60vh, 38rem);
+  min-height: clamp(28rem, 72vh, 46rem);
 }
 
 /* The page's region buttons and "Draw your own area" replace the map's own tools; its
