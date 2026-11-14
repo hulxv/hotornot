@@ -49,19 +49,20 @@ export function rankText(rank, years) {
 }
 
 /**
- * The verdict's numbers as figures: this period and the usual level as two bars on one scale,
- * then the rank among the years. The bars are hidden from assistive technology; each row's label
+ * The verdict's numbers as figures: this period (a month's days, or a whole year for a
+ * `YearSummary`) and the usual level as two bars on one scale, then the rank among the years. The bars are hidden from assistive technology; each row's label
  * and number read as a pair.
- * @param {MonthSummary} summary
+ * @param {MonthSummary | import("../verdict.js").YearSummary} summary
  */
-function figures({ year, value, median, rank, of_years: years, days_covered: days }) {
+function figures({ year, value, median, rank, of_years: years, days_covered: days, complete }) {
   if (!isNumber(value)) return null;
-  const partial = isNumber(days);
+  const yearly = complete !== undefined;
+  const partial = yearly ? !complete : isNumber(days);
   const top = Math.max(value, isNumber(median) ? median : 0);
   const width = (number) => (top > 0 && number > 0 ? Math.max(1.5, (100 * number) / top) : 0);
   const bar = (number, kind) =>
     h("span", { class: "figures__track", "aria-hidden": "true" }, h("span", { class: `figures__bar figures__bar--${kind}`, style: `width: ${width(number).toFixed(1)}%` }));
-  const ratio = ratioText(value, median);
+  const ratio = yearly && !complete ? null : ratioText(value, median);
   const rows = [
     h("dt", { text: partial ? `${year} so far` : String(year) }),
     h(
@@ -72,7 +73,8 @@ function figures({ year, value, median, rank, of_years: years, days_covered: day
     ),
   ];
   if (isNumber(median)) {
-    rows.push(h("dt", { text: partial ? "Usual by now" : "Usual" }), h("dd", {}, bar(median, "usual"), h("span", { class: "figures__value", text: formatCount(median) })));
+    const usual = yearly ? "Usual year" : partial ? "Usual by now" : "Usual";
+    rows.push(h("dt", { text: usual }), h("dd", {}, bar(median, "usual"), h("span", { class: "figures__value", text: formatCount(median) })));
   }
   if (isNumber(rank) && isNumber(years) && years >= 2) {
     rows.push(h("dt", { text: "Rank" }), h("dd", { class: "figures__rank", text: rankText(rank, years) }));
@@ -81,16 +83,16 @@ function figures({ year, value, median, rank, of_years: years, days_covered: day
 }
 
 /**
- * This month's total against the same days of every earlier year, as a bar per year with the
- * chosen year lit. Each year is a button: with `onYear`, choosing one shows all of that year's
+ * This month's total against the same days of every earlier year, or each year's total for a
+ * `YearSummary`, as a bar per year with the chosen year lit. Each year is a button: with `onYear`, choosing one shows all of that year's
  * fires on the map. Arrow keys move between years with one tab stop for the chart.
  * @param {MonthSummary & { history?: YearTotal[] }} summary
  * @param {((year: number) => void) | undefined} onYear
  */
-function yearChart({ month, year, days_covered: days, median, history }, onYear) {
+function yearChart({ month, year, days_covered: days, median, history, complete }, onYear) {
   if (!history || history.length < 4) return null;
   const { bars, medianHeight, busiest } = yearBars(history, median);
-  const span = days ? `${MONTH_LONG[month - 1]} 1–${days}` : `Every ${MONTH_LONG[month - 1]}`;
+  const span = complete !== undefined ? "Each whole year" : days ? `${MONTH_LONG[month - 1]} 1–${days}` : `Every ${MONTH_LONG[month - 1]}`;
   const columns = bars.map((bar) =>
     h(
       "button",
@@ -166,11 +168,13 @@ export function markMapYear({ body }, year) {
 
 /**
  * The verdict card: area and period next to the "Hot or not?" heading, the word, the sentence,
- * its notes and the year chart. `onLatest`, when given, adds a button back to the newest month;
- * `onYear` makes the chart's years choose the map's fires.
+ * its notes and the year chart, for a month or, with a `YearSummary`, a whole year. `onLatest`,
+ * when given, adds a button back (`latestLabel`, "Back to today" by default); `onYear` makes the
+ * chart's years choose a year.
  * @param {VerdictElements} elements
  * @param {{ status: "loading", area: string } | { status: "empty", area: string, text: string }
- *   | { status: "ready", area: string, verdict: Verdict, summary?: MonthSummary & { history?: YearTotal[] }, onLatest?: () => void, onYear?: (year: number) => void }} view
+ *   | { status: "ready", area: string, verdict: Verdict, summary?: (MonthSummary & { history?: YearTotal[] }) | import("../verdict.js").YearSummary,
+ *       onLatest?: () => void, latestLabel?: string, onYear?: (year: number) => void }} view
  */
 export function renderVerdict({ card, where, body }, view) {
   body.setAttribute("aria-busy", String(view.status === "loading"));
@@ -190,6 +194,6 @@ export function renderVerdict({ card, where, body }, view) {
   const parts = [shown ?? h("p", { class: "verdict__sentence", text: sentence }), ...notes.map((note) => h("p", { class: "verdict__note", text: note }))];
   if (word) parts.unshift(h("p", { class: "verdict__word" }, h("span", { class: "visually-hidden", text: "Verdict: " }), word));
   if (view.summary) parts.push(yearChart(view.summary, view.onYear));
-  if (view.onLatest) parts.push(h("button", { type: "button", class: "link-button", text: "Back to today", onclick: view.onLatest }));
+  if (view.onLatest) parts.push(h("button", { type: "button", class: "link-button", text: view.latestLabel ?? "Back to today", onclick: view.onLatest }));
   body.replaceChildren(...parts.filter(Boolean));
 }

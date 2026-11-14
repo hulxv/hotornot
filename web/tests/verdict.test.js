@@ -151,3 +151,51 @@ describe("the verdict's figures", async () => {
     assert.deepEqual(busiest, { year: 2003, value: 10 });
   });
 });
+
+describe("a whole year's verdict", async () => {
+  const { yearSummary, yearVerdict } = await import("../public/js/verdict.js");
+  // November 2000 to November 2026, each month worth its year minus 2000, except a hot 2010
+  // (20 a month) and a cold 2015 (0 a month).
+  const months = [];
+  for (let year = 2000; year <= 2026; year += 1) {
+    for (let month = 1; month <= 12; month += 1) {
+      if ((year === 2000 && month < 11) || (year === 2026 && month > 11)) continue;
+      months.push({ year, month, value: year === 2010 ? 20 : year === 2015 ? 0 : year - 2000 });
+    }
+  }
+
+  it("totals the year and compares it with the whole baseline years", () => {
+    const hot = yearSummary(months, 2010);
+    assert.equal(hot.value, 240);
+    assert.equal(hot.complete, true);
+    assert.equal(hot.rank, 1);
+    assert.equal(hot.of_years, 8);
+    // Baseline 2003-2025 totals: 12 * (3..25) with 2010 at 240 and 2015 at 0; the 12th of the 23
+    // sorted totals is 2014's 168.
+    assert.equal(hot.median, 168);
+    assert.equal(yearVerdict(hot).word, "HOT");
+    assert.equal(yearVerdict(hot).period, "2010");
+    const cold = yearSummary(months, 2015);
+    assert.deepEqual([cold.value, cold.rank, cold.of_years], [0, 13, 13]);
+    assert.equal(yearVerdict(cold).word, "NOT");
+  });
+
+  it("does not rank or judge a year that is still running, or one before the baseline", () => {
+    const now = yearSummary(months, 2026);
+    assert.deepEqual([now.complete, now.rank, now.of_years], [false, null, null]);
+    assert.equal(now.value, 11 * 26);
+    assert.deepEqual(yearVerdict(now), {
+      word: null,
+      period: "2026 so far",
+      sentence: "286 fire detections in 2026.",
+      notes: ["2026 is not over yet, so it is not compared with whole years."],
+    });
+    assert.deepEqual(yearVerdict(yearSummary(months, 2002)).notes, ["Years before 2003 are not ranked."]);
+    assert.deepEqual(yearVerdict(yearSummary(months, 2004)).notes, ["Only 2 years to compare, too few for a verdict."]);
+  });
+
+  it("charts every year from the baseline start, the running one included", () => {
+    const { history } = yearSummary(months, 2010);
+    assert.deepEqual([history[0], history.at(-1), history.length], [{ year: 2003, value: 36 }, { year: 2026, value: 286 }, 24]);
+  });
+});

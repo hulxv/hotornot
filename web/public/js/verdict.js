@@ -132,3 +132,88 @@ export function verdict(summary) {
 export function verdictMonth(end, latest) {
   return end && end < latest ? end : latest;
 }
+
+/**
+ * @typedef {{
+ *   year: number, value: number | null, median: number | null, rank: number | null,
+ *   of_years: number | null, complete: boolean, history: { year: number, value: number }[],
+ * }} YearSummary
+ */
+
+const round4 = (value) => Math.round(value * 1e4) / 1e4;
+
+/** @param {number[]} values non-empty */
+function medianOf(values) {
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = sorted.length >> 1;
+  return round4(sorted.length % 2 ? sorted[mid] : (sorted[mid - 1] + sorted[mid]) / 2);
+}
+
+/**
+ * One calendar year's total against the other years, from a harmonized calendar's months. The
+ * usual level is the median of the whole baseline years; the rank, like a month's, is among the
+ * whole years from the baseline's start up to this one, tied years sharing the best rank. A year
+ * the record holds only part of (the first, or this one) is not ranked.
+ * @param {{ year: number, value: number | null }[]} months
+ * @param {number} year
+ * @returns {YearSummary}
+ */
+export function yearSummary(months, year) {
+  /** @type {Map<number, { value: number, months: number }>} */
+  const totals = new Map();
+  for (const month of months) {
+    if (!isNumber(month.value)) continue;
+    const entry = totals.get(month.year) ?? { value: 0, months: 0 };
+    entry.value += month.value;
+    entry.months += 1;
+    totals.set(month.year, entry);
+  }
+  const whole = (y) => totals.get(y)?.months === 12;
+  const { start_year: first, end_year: last } = TIME.BASELINE;
+  const baseline = [...totals].filter(([y]) => y >= first && y <= last && whole(y)).map(([, entry]) => entry.value);
+  const own = totals.get(year);
+  const complete = whole(year);
+  let rank = null;
+  let ofYears = null;
+  if (own && complete && year >= first) {
+    const rivals = [...totals].filter(([y]) => y >= first && y <= year && whole(y)).map(([, entry]) => round4(entry.value));
+    const mine = round4(own.value);
+    rank = 1 + rivals.filter((value) => value > mine).length;
+    ofYears = rivals.length;
+  }
+  return {
+    year,
+    value: own ? round4(own.value) : null,
+    median: baseline.length ? medianOf(baseline) : null,
+    rank,
+    of_years: ofYears,
+    complete,
+    history: [...totals]
+      .filter(([y]) => y >= first)
+      .sort((a, b) => a[0] - b[0])
+      .map(([y, entry]) => ({ year: y, value: round4(entry.value) })),
+  };
+}
+
+/**
+ * The verdict for a whole year: the word only for a whole, ranked year.
+ * @param {YearSummary} summary
+ * @returns {Verdict}
+ */
+export function yearVerdict(summary) {
+  const { year, value, complete, of_years: years } = summary;
+  const word = complete ? verdictWord(summary) : null;
+  const notes = [];
+  if (!isNumber(value)) notes.push(`No fire data for ${year}.`);
+  else if (!complete && year === summary.history.at(-1)?.year) notes.push(`${year} is not over yet, so it is not compared with whole years.`);
+  else if (!complete) notes.push(`${year} is only partly in the record, so it is not compared with whole years.`);
+  else if (year < TIME.BASELINE.start_year) notes.push(`Years before ${TIME.BASELINE.start_year} are not ranked.`);
+  else if (word === null && isNumber(years) && years < MIN_YEARS) notes.push(`Only ${years} year${years === 1 ? "" : "s"} to compare, too few for a verdict.`);
+  const count = isNumber(value) ? formatCount(value) : null;
+  return {
+    word,
+    period: complete ? String(year) : `${year} so far`,
+    sentence: count === null ? `No fire data for ${year}.` : `${count} fire detection${count === "1" ? "" : "s"} in ${year}.`,
+    notes,
+  };
+}

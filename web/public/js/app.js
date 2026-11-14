@@ -23,7 +23,7 @@ import { errorMessage } from "./panels/messages.js";
 import { markMapYear, renderVerdict } from "./panels/verdict-card.js";
 import { createStory } from "./story/story.js";
 import { EXAMPLES, VIEWS, areaFromPolygon, areaPolygon, parseState, serializeState, seriesForView } from "./url-state.js";
-import { verdict, verdictMonth } from "./verdict.js";
+import { verdict, verdictMonth, yearSummary, yearVerdict } from "./verdict.js";
 import { TIME } from "../shared/contracts.js";
 
 /**
@@ -464,7 +464,7 @@ export async function startApp(doc = document) {
   /** @param {AppState} next a whole state: a Try link or a story step */
   function applyState(next) {
     pointsRange = null;
-    mapYear = null;
+    leaveYear();
     setState({ ...next });
     showArea();
   }
@@ -663,6 +663,10 @@ export async function startApp(doc = document) {
 
   /** @param {number} id @param {Aoi} polygon @param {string} key */
   async function loadVerdict(id, polygon, key) {
+    if (mapYear !== null) {
+      showYearVerdict(id, polygon, mapYear);
+      return;
+    }
     const focus = focusMonth();
     const wanted = JSON.stringify([key, focus]);
     if (verdictKey === wanted) return;
@@ -687,6 +691,44 @@ export async function startApp(doc = document) {
     }
   }
 
+  /**
+   * The verdict card for a whole year, from the harmonized calendar of the whole record (the
+   * page usually has it cached already).
+   * @param {number} id @param {Aoi} polygon @param {number} year
+   */
+  async function showYearVerdict(id, polygon, year) {
+    verdictKey = null;
+    renderVerdict(ui.verdict, { status: "loading", area: currentAreaLabel() });
+    const request = calendarBody(polygon, { ...state, start: null, end: null, view: "harmonized", series: "harmonized" }, metadata);
+    try {
+      const result = await fetchCalendar(request);
+      if (id !== loadId || mapYear !== year) return;
+      noteMock(result.mock);
+      const summary = yearSummary(result.body.months, year);
+      const focus = focusMonth();
+      renderVerdict(ui.verdict, {
+        status: "ready",
+        area: currentAreaLabel(),
+        verdict: yearVerdict(summary),
+        summary,
+        onLatest: followVerdictDates,
+        latestLabel: `Back to ${monthName(focus)}${focus === latest ? " so far" : ""}`,
+        onYear: (other) => showYearOnMap(other),
+      });
+      markMapYear(ui.verdict, year);
+    } catch (error) {
+      if (id === loadId) renderVerdict(ui.verdict, { status: "empty", area: currentAreaLabel(), text: describeError(asApiError(error)).title });
+    }
+  }
+
+  /** Leaves a chosen year: the verdict card goes back to the month on its next load. */
+  function leaveYear() {
+    if (mapYear === null) return false;
+    mapYear = null;
+    verdictKey = null;
+    return true;
+  }
+
   /** @param {"from" | "to"} changed */
   function changePointsRange(changed) {
     let from = ui.pointsFrom.value;
@@ -699,9 +741,11 @@ export async function startApp(doc = document) {
       else from = to;
     }
     pointsRange = { from, to };
-    mapYear = null;
+    const left = leaveYear();
     const polygon = currentPolygon();
-    if (polygon) loadPoints(loadId, polygon);
+    if (!polygon) return;
+    loadPoints(loadId, polygon);
+    if (left) loadVerdict(loadId, polygon, JSON.stringify(polygon));
   }
 
   /** The chart year whose fires the map shows, or null for the verdict's month or picked dates. */
@@ -718,14 +762,18 @@ export async function startApp(doc = document) {
     pointsRange = { from: clampDate(`${year}-01-01`), to: clampDate(`${year}-12-31`) };
     mapYear = year;
     const polygon = currentPolygon();
-    if (polygon) loadPoints(loadId, polygon);
+    if (!polygon) return;
+    loadPoints(loadId, polygon);
+    showYearVerdict(loadId, polygon, year);
   }
 
   function followVerdictDates() {
     pointsRange = null;
-    mapYear = null;
+    const left = leaveYear();
     const polygon = currentPolygon();
-    if (polygon) loadPoints(loadId, polygon);
+    if (!polygon) return;
+    loadPoints(loadId, polygon);
+    if (left) loadVerdict(loadId, polygon, JSON.stringify(polygon));
   }
 
   /** @param {string} date YYYY-MM-DD */
