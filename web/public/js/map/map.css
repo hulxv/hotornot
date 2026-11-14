@@ -246,6 +246,19 @@
   border: 2px solid #ffffff;
 }
 
+.hon-map__swatch--fire {
+  width: 0.5rem;
+  height: 0.5rem;
+  margin: 0 0.1875rem;
+  border-radius: 50%;
+  background: #ffa31a;
+}
+
+.hon-map__fires {
+  flex-basis: 100%;
+  color: var(--fg, #ececec);
+}
+
 .hon-map__swatch--outside {
   background: linear-gradient(rgb(5 7 10 / 0.42), rgb(5 7 10 / 0.42)), var(--hon-land);
 }

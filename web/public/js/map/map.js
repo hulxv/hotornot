@@ -7,6 +7,7 @@ import {
   BOX_FIELDS,
   hatchImage,
   parseCoordinate,
+  pointsToGeoJSON,
   polygonBbox,
   regionAt,
   regionsBounds,
@@ -29,6 +30,7 @@ import { EMPTY, HATCH_IMAGE, MAP_COLORS as COLORS, REGION_LABEL_LAYER, basemapPa
  * }} MapOptions
  * @typedef {{
  *   setSnapped: (cellIds: Iterable<number>, uncoveredIds?: Iterable<number>) => Promise<void>,
+ *   setPoints: (flat: number[] | null, info?: { label?: string, total?: number }) => Promise<void>,
  *   fitRegion: (regionId: RegionId) => void,
  *   clear: () => void,
  *   setAoi: (polygon: Aoi, options?: { fit?: boolean }) => Promise<void>,
@@ -179,12 +181,15 @@ function buildPanel(container, regions, prefix) {
   const status = el("p", { class: "hon-map__status", role: "status", text: MESSAGES.hint });
   const overviewButton = el("button", { type: "button", class: "hon-map__overview", title: "Show all four regions", text: "All regions" });
   const canvas = el("div", { class: "hon-map__canvas" });
+  const pointsLabel = el("span", { text: "Fires counted" });
+  const pointsCount = el("span", { class: "hon-map__count" });
   const countedCount = el("span", { class: "hon-map__count" });
   const uncoveredCount = el("span", { class: "hon-map__count" });
   const swatch = (kind) => el("span", { class: `hon-map__swatch hon-map__swatch--${kind}`, "aria-hidden": "true" });
   const legend = el(
     "ul",
     { class: "hon-map__legend", "aria-label": "Map legend" },
+    el("li", { class: "hon-map__fires" }, swatch("fire"), pointsLabel, pointsCount),
     el("li", {}, swatch("aoi"), "Your area"),
     el("li", {}, swatch("counted"), "Counted cells", countedCount),
     el("li", {}, swatch("no-data"), "No data, not counted", uncoveredCount),
@@ -194,7 +199,7 @@ function buildPanel(container, regions, prefix) {
 
   container.classList.add("hon-map");
   container.append(tools, status, canvas, legend);
-  return { presets, drawButton, clearButton, box, form, inputs, errors, status, overviewButton, canvas, countedCount, uncoveredCount };
+  return { presets, drawButton, clearButton, box, form, inputs, errors, status, overviewButton, canvas, countedCount, uncoveredCount, pointsLabel, pointsCount };
 }
 
 /** @param {Aoi} polygon */
@@ -285,6 +290,7 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
   let aoiId = null;
   let drawing = false;
   let snapCall = 0;
+  let pointsCall = 0;
   let ready = false;
   let styleLoaded = false;
   let offline = false;
@@ -607,6 +613,24 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
     ui.uncoveredCount.textContent = ` (${overlay.uncoveredCells.toLocaleString("en-US")})`;
   }
 
+  /**
+   * Draws fire detections, or clears them with null. `label` names what they are, for example
+   * "Fires counted, November 2026 so far"; `total` is the count before any thinning.
+   * @param {number[] | null} flat [lon, lat, lon, lat, ...]
+   * @param {{ label?: string, total?: number }} [info]
+   */
+  async function setPoints(flat, { label = "Fires counted", total } = {}) {
+    const call = ++pointsCall;
+    await loaded;
+    if (call !== pointsCall) return;
+    map.getSource("hon-points")?.setData(pointsToGeoJSON(flat));
+    ui.pointsLabel.textContent = label;
+    const shown = flat ? flat.length / 2 : 0;
+    if (!flat) ui.pointsCount.textContent = "";
+    else if (total !== undefined && total > shown) ui.pointsCount.textContent = ` (${shown.toLocaleString("en-US")} of ${total.toLocaleString("en-US")} shown)`;
+    else ui.pointsCount.textContent = ` (${shown.toLocaleString("en-US")})`;
+  }
+
   /** Removes the area and the overlay without calling onAoiChange. */
   function clear() {
     removeAoi();
@@ -625,5 +649,5 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
     await placeAoi(polygon, fit);
   }
 
-  return { setSnapped, fitRegion, clear, setAoi, startDrawing, openBoxForm };
+  return { setSnapped, setPoints, fitRegion, clear, setAoi, startDrawing, openBoxForm };
 }

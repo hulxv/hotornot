@@ -13,6 +13,8 @@ export const MAP_COLORS = Object.freeze({
   ink: "#ffffff",
   paper: "#0a0d12",
   region: "#ffffff",
+  fire: "#ffa31a",
+  fireEdge: "#2b1300",
   land: "#4f5d7c",
   water: "#0e1626",
 });
@@ -59,6 +61,7 @@ export function overlaySources(regions) {
     "hon-regions": { type: "geojson", data: regionsToGeoJSON(regions) },
     "hon-counted": { type: "geojson", data: EMPTY },
     "hon-uncovered": { type: "geojson", data: EMPTY },
+    "hon-points": { type: "geojson", data: EMPTY },
   };
 }
 
@@ -86,6 +89,18 @@ export function overlayLayers() {
         source: "hon-regions",
         filter: ["==", ["geometry-type"], "Polygon"],
         paint: { "line-color": MAP_COLORS.region, "line-width": 2.5 },
+      },
+      {
+        id: "hon-points",
+        type: "circle",
+        source: "hon-points",
+        paint: {
+          "circle-color": MAP_COLORS.fire,
+          "circle-radius": ["interpolate", ["linear"], ["zoom"], 2, 1.5, 5, 2.5, 8, 3.5, 12, 6],
+          "circle-stroke-color": MAP_COLORS.fireEdge,
+          "circle-stroke-width": ["interpolate", ["linear"], ["zoom"], 4, 0, 6, 0.75],
+          "circle-opacity": 0.9,
+        },
       },
     ],
     overLabels: [

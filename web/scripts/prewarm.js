@@ -6,7 +6,7 @@
 //   node scripts/prewarm.js https://hotornot.example.app [--rounds=2]
 import { pathToFileURL } from "node:url";
 import { calendarBody } from "../public/js/client-api.js";
-import { DEFAULT_STATE, areaPolygon } from "../public/js/url-state.js";
+import { DEFAULT_STATE, EXAMPLES, areaPolygon } from "../public/js/url-state.js";
 
 /**
  * @typedef {import("../public/shared/contracts.js").Metadata} Metadata
@@ -14,9 +14,12 @@ import { DEFAULT_STATE, areaPolygon } from "../public/js/url-state.js";
  * @typedef {Call & { status: number, ms: number, cache: string | null, bytes: number }} Result
  */
 
+/** @param {import("../public/shared/contracts.js").Aoi} aoi @param {string} month YYYY-MM */
+const pointsBody = (aoi, month) => ({ aoi, start: month, end: month, series: "harmonized" });
+
 /**
- * The calls the page makes for each region preset in its default view and in the raw view, plus
- * the method page's data.
+ * The calls the page makes for each region preset in its default view and in the raw view, the
+ * map's fire points for each preset and example, plus the method page's data.
  * @param {Metadata} metadata
  * @returns {Call[]}
  */
@@ -30,6 +33,15 @@ export function prewarmCalls(metadata) {
       calls.push({ name: `${region.id} calendar ${series}`, path: "/api/calendar", body: calendarBody(aoi, state, metadata) });
     }
     calls.push({ name: `${region.id} current month`, path: "/api/current-month", body: { aoi } });
+    const latest = region.coverage.nrt_until.slice(0, 7);
+    calls.push({ name: `${region.id} points ${latest}`, path: "/api/points", body: pointsBody(aoi, latest) });
+  }
+  // The examples' months are the slowest point reads (Black Summer is about 4 s cold).
+  for (const { state } of EXAMPLES) {
+    const region = metadata.regions.find((candidate) => candidate.id === state.region);
+    if (!region || !state.end) continue;
+    const aoi = /** @type {import("../public/shared/contracts.js").Aoi} */ (areaPolygon({ kind: "preset" }, region));
+    calls.push({ name: `${region.id} points ${state.end}`, path: "/api/points", body: pointsBody(aoi, state.end) });
   }
   calls.push({ name: "method", path: "/api/method" });
   return calls;

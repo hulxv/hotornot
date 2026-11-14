@@ -2,7 +2,7 @@ import { createCalendar } from "./calendar/index.js";
 import { buildOption } from "./calendar/option.js";
 import { calendarTable, calendarTableHtml } from "./calendar/table.js";
 import { MONTH_LONG, buildCalendar } from "./calendar/transform.js";
-import { ApiError, RECORD_START_MONTH, calendarBody, getMetadata, lastRecordMonth, postCalendar, postCurrentMonth, resolveRange } from "./client-api.js";
+import { ApiError, RECORD_START_MONTH, calendarBody, getMetadata, lastRecordMonth, postCalendar, postCurrentMonth, postPoints, resolveRange } from "./client-api.js";
 import { createMap } from "./map/map.js";
 import { areaLabel, renderArea, snapForMap } from "./panels/area.js";
 import { h } from "./panels/dom.js";
@@ -132,6 +132,7 @@ export function estimateCalendarHeight({ view, julyStart, width, start, end, tit
 /** A map stand-in when MapLibre or terra-draw could not load: the calendar still works. */
 const NO_MAP = {
   setSnapped: async () => {},
+  setPoints: async () => {},
   setAoi: async () => {},
 };
 
@@ -159,6 +160,7 @@ export async function startApp(doc = document) {
   const calendars = new PromiseCache();
   /** @type {PromiseCache<{ body: MonthSummary, mock: boolean }>} */
   const currentMonths = new PromiseCache();
+  const pointSets = new PromiseCache();
   const metadataLoad = getMetadata();
   metadataLoad.then(({ body }) => prefetch(body), () => {});
   await pageLoaded(doc);
@@ -566,6 +568,27 @@ export async function startApp(doc = document) {
     exportsPanel.setReady(false);
     loadCalendar(id, polygon);
     loadVerdict(id, polygon, key);
+    loadPoints(id, polygon);
+  }
+
+  /**
+   * The fires counted in the verdict's month, on the map. They load after the calendar and the
+   * verdict and never hold them up; a failure only leaves the map without dots.
+   * @param {number} id @param {Aoi} polygon
+   */
+  async function loadPoints(id, polygon) {
+    const focus = focusMonth();
+    const label = `Fires counted, ${monthName(focus)}${focus === latest ? " so far" : ""}`;
+    const request = { aoi: polygon, start: focus, end: focus, series: /** @type {const} */ ("harmonized") };
+    map.setPoints(null, { label: `${label}: loading…` }).catch(() => {});
+    try {
+      const result = await pointSets.get(JSON.stringify(request), () => postPoints(request));
+      if (id !== loadId) return;
+      await map.setPoints(result.body.points, { label, total: result.body.total });
+    } catch (error) {
+      if (id === loadId) map.setPoints(null, { label: `${label}: could not load` }).catch(() => {});
+      console.warn("the map could not load the fire points:", error);
+    }
   }
 
   /** @param {number} id @param {Aoi} polygon */

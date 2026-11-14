@@ -9,6 +9,7 @@ import {
   hatchImage,
   outsideRegionsMask,
   parseCoordinate,
+  pointsToGeoJSON,
   polygonBbox,
   regionAt,
   regionsBounds,
@@ -458,6 +459,7 @@ describe("the offline fallback style", () => {
       "hon-uncovered",
       "hon-uncovered-hatch",
       "hon-region-outline",
+      "hon-points",
       "hon-uncovered-label",
       REGION_LABEL_LAYER,
     ]);
@@ -562,5 +564,13 @@ describe("basemap contrast", () => {
       assert.match(paint["text-color"], /^#[0-9a-f]{6}$/);
       assert.equal(paint["text-halo-color"], "#0e1626");
     }
+  });
+});
+
+describe("pointsToGeoJSON", () => {
+  it("turns a flat lon, lat array into point features, and null into an empty collection", () => {
+    const collection = pointsToGeoJSON([31.1, 30.7, -120.5, 38.25]);
+    assert.deepEqual(collection.features.map((feature) => feature.geometry.coordinates), [[31.1, 30.7], [-120.5, 38.25]]);
+    assert.deepEqual(pointsToGeoJSON(null), { type: "FeatureCollection", features: [] });
   });
 });

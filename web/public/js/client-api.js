@@ -124,6 +124,16 @@ export async function postCurrentMonth(aoi) {
 }
 
 /**
+ * Where the fires counted in the series were, for the map.
+ * @param {CalendarRequest} body
+ * @returns {Promise<{ body: { month_start: string, month_end: string, total: number, points: number[] }, mock: boolean }>}
+ */
+export async function postPoints(body) {
+  const response = await post("/api/points", body);
+  return { body: await response.json(), mock: isMock(response) };
+}
+
+/**
  * The file name from a `Content-Disposition` header, or null.
  * @param {string | null} header
  */

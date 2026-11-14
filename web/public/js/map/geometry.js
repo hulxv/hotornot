@@ -257,6 +257,20 @@ export function outsideRegionsMask(regions) {
 }
 
 /**
+ * A GeoJSON FeatureCollection of points from a flat [lon, lat, lon, lat, ...] array.
+ * @param {number[] | null} flat
+ */
+export function pointsToGeoJSON(flat) {
+  const features = [];
+  if (flat) {
+    for (let i = 0; i + 1 < flat.length; i += 2) {
+      features.push({ type: "Feature", properties: {}, geometry: { type: "Point", coordinates: [flat[i], flat[i + 1]] } });
+    }
+  }
+  return { type: "FeatureCollection", features };
+}
+
+/**
  * Bounds of a polygon's outer ring as [west, south, east, north].
  * @param {Aoi} polygon
  * @returns {Bbox}

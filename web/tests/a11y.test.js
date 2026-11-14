@@ -15,7 +15,7 @@ import { CALENDAR_PALETTE, CALENDAR_PALETTE_DARK } from "../public/js/calendar/p
 import { calendarTable, calendarTableHtml } from "../public/js/calendar/table.js";
 import { calendarBody } from "../public/js/client-api.js";
 import { errorMessage } from "../public/js/panels/messages.js";
-import { DEFAULT_STATE, areaPolygon } from "../public/js/url-state.js";
+import { DEFAULT_STATE, EXAMPLES, areaPolygon } from "../public/js/url-state.js";
 import { ERROR_CODES } from "../public/shared/contracts.js";
 import {
   DEFAULT_PAGES,
@@ -561,7 +561,8 @@ describe("the served pages", () => {
   it("prewarms every preset with the page's own requests", async (t) => {
     const metadata = await (await fetch(`${base}/api/metadata`)).json();
     const calls = prewarmCalls(metadata);
-    assert.equal(calls.length, 2 + metadata.regions.length * 3);
+    const examples = EXAMPLES.filter((example) => example.state.end).length;
+    assert.equal(calls.length, 2 + metadata.regions.length * 4 + examples);
     const nile = metadata.regions.find((region) => region.id === "nile_delta");
     const pageRequest = calendarBody(/** @type {any} */ (areaPolygon(DEFAULT_STATE.area, nile)), DEFAULT_STATE, metadata);
     assert.deepEqual(calls.find((call) => call.name === "nile_delta calendar harmonized").body, pageRequest);
