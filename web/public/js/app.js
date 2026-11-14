@@ -598,6 +598,7 @@ export async function startApp(doc = document) {
         status: "ready",
         area: currentAreaLabel(),
         verdict: verdict(result.body),
+        summary: result.body,
         onLatest: focus === latest ? undefined : backToToday,
       });
     } catch (error) {

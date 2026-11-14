@@ -37,7 +37,8 @@ import { EMPTY, HATCH_IMAGE, MAP_COLORS as COLORS, REGION_LABEL_LAYER, fallbackS
  * }} MapHandle
  */
 
-export const BASEMAP_STYLE = "https://tiles.openfreemap.org/styles/liberty";
+// OpenFreeMap's dark slate-blue style; it has the same layers and glyphs as liberty.
+export const BASEMAP_STYLE = "https://tiles.openfreemap.org/styles/fiord";
 
 const COORDINATE_DECIMALS = 6;
 const REGION_PADDING = 48;
@@ -327,7 +328,7 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
       map.addLayer(palestine);
     }
     const firstLabel = styleLayers.find((layer) => layer.type === "symbol")?.id;
-    map.addImage(HATCH_IMAGE, hatchImage(), { pixelRatio: 2 });
+    map.addImage(HATCH_IMAGE, hatchImage({ color: [226, 232, 240, 200] }), { pixelRatio: 2 });
     for (const [id, source] of Object.entries(overlaySources(regions))) map.addSource(id, source);
     const { underLabels, overLabels } = overlayLayers();
     for (const layer of underLabels) map.addLayer(layer, firstLabel);

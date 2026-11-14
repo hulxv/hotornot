@@ -4,18 +4,18 @@ import { outsideRegionsMask, regionsToGeoJSON } from "./geometry.js";
 
 /** @typedef {import("../../shared/contracts.js").RegionMeta} RegionMeta */
 
-// The basemap is light in both page themes, so these colors do not change in dark mode.
+// For a dark basemap: light ink, lit region outlines, and everything outside the regions dimmed.
 export const MAP_COLORS = Object.freeze({
-  counted: "#6d28d9",
-  noDataFill: "#9ca3af",
-  outside: "#4b5563",
-  ink: "#111827",
-  paper: "#ffffff",
-  region: "#1f2937",
-  land: "#f8f4f0",
+  counted: "#5ee3d0",
+  noDataFill: "#0a0d12",
+  outside: "#05070a",
+  ink: "#ffffff",
+  paper: "#0a0d12",
+  region: "#5ee3d0",
+  land: "#45516e",
 });
 
-// Two of the three fontstacks the liberty style's glyph server provides. Without a glyph server
+// Two of the three fontstacks the basemap's glyph server provides. Without a glyph server
 // (the offline style), MapLibre 5 draws the same text with the browser's own sans-serif.
 const FONT = ["Noto Sans Regular"];
 const BOLD_FONT = ["Noto Sans Bold"];
@@ -50,17 +50,17 @@ export function overlayLayers() {
         type: "fill",
         source: "hon-outside",
         // Without antialiasing there is no seam where world copies meet; the outlines cover the box edges.
-        paint: { "fill-color": MAP_COLORS.outside, "fill-opacity": 0.45, "fill-antialias": false },
+        paint: { "fill-color": MAP_COLORS.outside, "fill-opacity": 0.6, "fill-antialias": false },
       },
-      { id: "hon-counted", type: "fill", source: "hon-counted", paint: { "fill-color": MAP_COLORS.counted, "fill-opacity": 0.4 } },
-      { id: "hon-uncovered", type: "fill", source: "hon-uncovered", paint: { "fill-color": MAP_COLORS.noDataFill, "fill-opacity": 0.35 } },
+      { id: "hon-counted", type: "fill", source: "hon-counted", paint: { "fill-color": MAP_COLORS.counted, "fill-opacity": 0.35 } },
+      { id: "hon-uncovered", type: "fill", source: "hon-uncovered", paint: { "fill-color": MAP_COLORS.noDataFill, "fill-opacity": 0.5 } },
       { id: "hon-uncovered-hatch", type: "fill", source: "hon-uncovered", paint: { "fill-pattern": HATCH_IMAGE } },
       {
         id: "hon-region-outline",
         type: "line",
         source: "hon-regions",
         filter: ["==", ["geometry-type"], "Polygon"],
-        paint: { "line-color": MAP_COLORS.region, "line-width": 2.5 },
+        paint: { "line-color": MAP_COLORS.region, "line-width": 2 },
       },
     ],
     overLabels: [

@@ -264,14 +264,12 @@ describe("the page against server.js and the W02 fixture", () => {
     }
   });
 
-  it("serves the palette tokens the calendar reads, light and dark", async () => {
+  it("serves the dark palette tokens the calendar reads", async () => {
     const response = await fetch(`${base}/css/app.css`);
     assert.equal(response.status, 200);
     const css = await response.text();
-    const light = rootTokens(css);
-    const dark = { ...light, ...rootTokens(css, css.indexOf("prefers-color-scheme: dark")) };
-    assert.deepEqual(paletteFromStyle(styleOf(light)), CALENDAR_PALETTE);
-    assert.deepEqual(paletteFromStyle(styleOf(dark)), CALENDAR_PALETTE_DARK);
+    assert.equal(css.includes("prefers-color-scheme"), false, "the page has one theme");
+    assert.deepEqual(paletteFromStyle(styleOf(rootTokens(css))), CALENDAR_PALETTE_DARK);
     assert.equal(paletteFromStyle(styleOf({})), CALENDAR_PALETTE, "a page without the tokens keeps the light palette");
   });
 });
