@@ -27,8 +27,8 @@ export const CHAPTERS = Object.freeze([
     title: "One scale",
     query: "?region=california",
     body:
-      "Hot or Not puts both on one scale. For every fire VIIRS sees, we ask: how likely is it that MODIS would have seen it too? A big, hot fire counts for more; a small one counts for less. We tested this on years the method had never seen, and it lands within 3 to 11 percent of MODIS each year. Raw VIIRS was off by up to ten times.",
-    caption: "Each VIIRS fire counts as much as MODIS would have seen. Tested on unseen years: within 3–11%.",
+      "Hot or Not puts both on one scale. For every fire VIIRS sees, we ask: how likely is it that MODIS would have seen it too? A big, hot fire counts for more; a small one counts for less. We tested this on years the method had never seen: its yearly totals land on average within 3 to 11 percent of MODIS, depending on the region. Raw VIIRS was off by up to ten times.",
+    caption: "Each VIIRS fire counts as much as MODIS would have seen. Tested on unseen years: 3–11% average error.",
     link: { text: "See the test", href: "/method.html#seam" },
   },
   {
