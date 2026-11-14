@@ -6,7 +6,7 @@ export const CALENDAR_PALETTE = Object.freeze({
   background: "#ffffff",
   text: "#1a1a1a",
   muted: "#555555",
-  font: 'system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
+  font: '"IBM Plex Sans", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif',
   /** viridis at 0, 0.1, ..., 1 (matplotlib), low to high */
   sequential: Object.freeze([
     "#440154",

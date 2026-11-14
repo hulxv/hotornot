@@ -25,7 +25,8 @@
  *   snapped_fraction: number }, baseline: { start_year: number, end_year: number },
  *   fire_season: number[], months: CalendarMonth[] }} CalendarResponse
  * @typedef {{ year: number, month: number, days_covered: number, value: number, median: number,
- *   rank: number, of_years: number, provisional: boolean, partial_coverage: boolean }} CurrentMonthResponse
+ *   rank: number, of_years: number, provisional: boolean, partial_coverage: boolean,
+ *   history?: { year: number, value: number }[] }} CurrentMonthResponse
  * @typedef {{ hotspot_id: string, satellite: string, sensor: string, acq_utc: string,
  *   acq_date: string, lat: number, lon: number, daynight: "D" | "N", frp_mw: number,
  *   confidence: string, fire_type: number | null, processing: "SP" | "NRT", in_series: boolean,
@@ -375,6 +376,7 @@ const currentMonthResponse = refine(
     of_years: int({ min: 1 }),
     provisional: boolean,
     partial_coverage: boolean,
+    history: optional(array(object({ year: int(), value: amount }))),
   }),
   rankPair,
 );

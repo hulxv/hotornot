@@ -74,6 +74,42 @@
       "sha256": "ca325fd1d8e55fdf357df668184ae677d729eec5c8514f24c2ea1efbe45dce34"
     },
     {
+      "name": "@fontsource/ibm-plex-sans",
+      "version": "5.3.0",
+      "license": "OFL-1.1",
+      "file": "fonts/ibm-plex-sans-latin-400-normal.woff2",
+      "url": "https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-sans@5.3.0/files/ibm-plex-sans-latin-400-normal.woff2",
+      "bytes": 22588,
+      "sha256": "3b646991d30055a93a4ecc499713d4347953a74a947ecab435ab72070cbdab0e"
+    },
+    {
+      "name": "@fontsource/ibm-plex-sans",
+      "version": "5.3.0",
+      "license": "OFL-1.1",
+      "file": "fonts/ibm-plex-sans-latin-500-normal.woff2",
+      "url": "https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-sans@5.3.0/files/ibm-plex-sans-latin-500-normal.woff2",
+      "bytes": 24184,
+      "sha256": "0717336fb31fcdcde4b8deb3675bb4a0f7f6d484864afcd6751ac29975962203"
+    },
+    {
+      "name": "@fontsource/ibm-plex-sans",
+      "version": "5.3.0",
+      "license": "OFL-1.1",
+      "file": "fonts/ibm-plex-sans-latin-600-normal.woff2",
+      "url": "https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-sans@5.3.0/files/ibm-plex-sans-latin-600-normal.woff2",
+      "bytes": 24252,
+      "sha256": "8960851d691c054ed38e259bdcf1a6190d157b4203ed5bb32c632a863fb8ec2f"
+    },
+    {
+      "name": "@fontsource/ibm-plex-sans",
+      "version": "5.3.0",
+      "license": "OFL-1.1",
+      "file": "licenses/ibm-plex-sans-LICENSE.txt",
+      "url": "https://cdn.jsdelivr.net/npm/@fontsource/ibm-plex-sans@5.3.0/LICENSE",
+      "bytes": 4429,
+      "sha256": "d0283623ef57e722fd0eb688a8041589670c608ab780cd3612d06ba6f153d3fd"
+    },
+    {
       "name": "terra-draw",
       "version": "1.39.0",
       "license": "MIT",

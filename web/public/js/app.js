@@ -12,6 +12,7 @@ import { renderVerdict } from "./panels/verdict-card.js";
 import { createStory } from "./story/story.js";
 import { EXAMPLES, VIEWS, areaFromPolygon, areaPolygon, parseState, serializeState, seriesForView } from "./url-state.js";
 import { verdict, verdictMonth } from "./verdict.js";
+import { TIME } from "../shared/contracts.js";
 
 /**
  * @typedef {import("../shared/contracts.js").Aoi} Aoi
@@ -54,6 +55,14 @@ class PromiseCache {
 const toYearMonth = (ym) => {
   const [year, month] = ym.split("-").map(Number);
   return { year, month };
+};
+
+const BASELINE_FIRST_YEAR = TIME.BASELINE.start_year;
+
+/** @param {string} date YYYY-MM-DD */
+const longDate = (date) => {
+  const [year, month, day] = date.split("-").map(Number);
+  return `${day} ${MONTH_LONG[month - 1]} ${year}`;
 };
 
 /** @param {string} ym YYYY-MM */
@@ -216,9 +225,10 @@ export async function startApp(doc = document) {
 
   ui.attribution.textContent = metadata.attribution;
   const method = metadata.method;
+  const through = metadata.regions.map((region) => region.coverage.nrt_until).sort().at(-1);
   ui.dataInfo.textContent =
-    `Data ${metadata.data_version} · weights ${method.weight_method}${method.model_version ? ` (${method.model_version})` : ""} · ` +
-    `calibration ${method.calibration_years} · baseline ${method.baseline} · NOAA-20 from ${method.viirs_switch}`;
+    `NASA FIRMS fire detections through ${longDate(through)}. MODIS and VIIRS are counted on one scale ` +
+    `(${method.weight_method === "model_v1" ? "detection model" : "ratio method"}, checked on years it never saw).`;
 
   buildPresets();
   buildExamples();
@@ -313,7 +323,10 @@ export async function startApp(doc = document) {
     const { year, month } = toYearMonth(focus);
     const found = body.months.find((m) => m.year === year && m.month === month);
     const empty = { year, month, value: null, median: null, rank: null, of_years: null, provisional: false, partial_coverage: false };
-    return { body: found ?? empty, mock: isMock };
+    const history = body.months
+      .filter((m) => m.month === month && m.year >= BASELINE_FIRST_YEAR && m.year <= year && m.value !== null)
+      .map((m) => ({ year: m.year, value: m.value }));
+    return { body: found ? { ...found, history } : empty, mock: isMock };
   }
 
   /**
@@ -353,8 +366,7 @@ export async function startApp(doc = document) {
 
   function buildExamples() {
     ui.examples.replaceChildren(
-      ...EXAMPLES.flatMap((example, i) => [
-        ...(i > 0 ? [" · "] : []),
+      ...EXAMPLES.flatMap((example) => [
         h("a", {
           href: `${location.pathname}${serializeState(example.state)}`,
           text: example.label,

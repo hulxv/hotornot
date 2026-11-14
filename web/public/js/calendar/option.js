@@ -107,11 +107,7 @@ export function defaultSubtitle(model) {
     anomaly: `Each month compared with normal: its ${from}–${to} median`,
     raw: "Raw counts per month before harmonizing, MODIS above VIIRS, one shared scale",
   }[model.view];
-  const details = [
-    `${model.aoi.covered_cells} cells, ${formatNumber(model.aoi.area_km2)} km²`,
-    `weights ${model.weightMethod}`,
-    `data ${model.dataVersion}`,
-  ];
+  const details = [`${formatNumber(Math.round(model.aoi.area_km2))} km²`];
   if (model.clippedFraction > 0) details.push(`${Math.round(model.clippedFraction * 100)}% of the area outside the region`);
   return `${what}\n${details.join(" · ")}`;
 }

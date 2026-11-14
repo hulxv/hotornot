@@ -298,6 +298,7 @@ describe("currentMonth", () => {
       of_years: 24,
       provisional: true,
       partial_coverage: true,
+      history: Array.from({ length: 24 }, (_, i) => ({ year: 2003 + i, value: i === 23 ? 6.5 : 3 + i })),
     });
     assert.deepEqual(checkCurrentMonthResponse(result), []);
   });

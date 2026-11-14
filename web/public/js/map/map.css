@@ -5,8 +5,8 @@
   --hon-border: var(--border, #2a2f38);
   --hon-control-border: var(--control-border, #8a8d94);
   --hon-surface: var(--bg, #17191e);
-  --hon-hover: rgb(94 227 208 / 0.12);
-  --hon-accent: var(--accent, #5ee3d0);
+  --hon-hover: rgb(255 255 255 / 0.08);
+  --hon-accent: var(--accent, #ececec);
   /* The basemap's land color, under the canvas before tiles draw and under the legend swatches. */
   --hon-land: #4f5d7c;
   display: flex;
@@ -134,8 +134,8 @@
   border-radius: 2px;
   background: var(--hon-surface);
   color: inherit;
-  font-family: var(--font-mono, ui-monospace, monospace);
   font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
 }
 
 .hon-map__input:focus {
@@ -190,11 +190,9 @@
 
 .hon-map .maplibregl-ctrl-group .hon-map__overview {
   width: auto;
-  padding: 0 0.5rem;
+  padding: 0 0.625rem;
   color: var(--hon-ink);
-  font: 600 0.6875rem/29px var(--font-mono, ui-monospace, monospace);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font: 500 0.75rem/29px var(--font);
   white-space: nowrap;
 }
 
@@ -222,7 +220,7 @@
 }
 
 .hon-map__count {
-  font-family: var(--font-mono, ui-monospace, monospace);
+  font-variant-numeric: tabular-nums;
 }
 
 .hon-map__swatch {
@@ -233,11 +231,11 @@
 }
 
 .hon-map__swatch--aoi {
-  border: 2px solid #ffffff;
+  border: 3px solid #ffffff;
 }
 
 .hon-map__swatch--counted {
-  background: linear-gradient(rgb(94 227 208 / 0.28), rgb(94 227 208 / 0.28)), var(--hon-land);
+  background: linear-gradient(rgb(255 255 255 / 0.16), rgb(255 255 255 / 0.16)), var(--hon-land);
 }
 
 .hon-map__swatch--no-data {
@@ -245,7 +243,7 @@
 }
 
 .hon-map__swatch--region {
-  border: 2px solid #5ee3d0;
+  border: 2px solid #ffffff;
 }
 
 .hon-map__swatch--outside {

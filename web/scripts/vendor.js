@@ -23,6 +23,14 @@ const FILES = [
     file: "terra-draw-maplibre-gl-adapter.umd.js",
     path: "dist/terra-draw-maplibre-gl-adapter.umd.js",
   },
+  ...[400, 500, 600].map((weight) => ({
+    name: "@fontsource/ibm-plex-sans",
+    version: "5.3.0",
+    license: "OFL-1.1",
+    file: `fonts/ibm-plex-sans-latin-${weight}-normal.woff2`,
+    path: `files/ibm-plex-sans-latin-${weight}-normal.woff2`,
+  })),
+  { name: "@fontsource/ibm-plex-sans", version: "5.3.0", license: "OFL-1.1", file: "licenses/ibm-plex-sans-LICENSE.txt", path: "LICENSE" },
   // The terra-draw npm packages ship no LICENSE file; this is the one from the release tag.
   {
     name: "terra-draw",

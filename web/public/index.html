@@ -7,6 +7,7 @@
     <meta name="description" content="Pick a place and see whether it is burning more than usual this month, from satellite fire detections since 2000 (MODIS and VIIRS on one scale).">
     <link rel="preconnect" href="https://tiles.openfreemap.org" crossorigin>
     <link rel="stylesheet" href="/vendor/maplibre-gl.css?v=5.24.1">
+    <link rel="preload" href="/vendor/fonts/ibm-plex-sans-latin-400-normal.woff2?v=5.3.0" as="font" type="font/woff2" crossorigin>
     <link rel="stylesheet" href="/css/base.css">
     <link rel="stylesheet" href="/js/map/map.css" data-hon-map>
     <link rel="stylesheet" href="/css/app.css">
@@ -45,27 +46,23 @@
   </head>
   <body>
     <a class="skip-link" href="#calendar-section">Skip to the calendar</a>
-    <header class="topbar">
-      <div class="topbar__inner">
-        <div class="brand">
-          <span class="brand__mark" aria-hidden="true"></span>
-          <h1 class="brand__name">Hot <span>or</span> Not</h1>
-          <p class="brand__tagline">Is this place burning more than usual? Fire detections from space, 2000 to today.</p>
-        </div>
-        <div class="topbar__actions">
-          <button type="button" class="button button--primary" id="story-start" aria-controls="story" aria-expanded="false" disabled>Tell me the story</button>
+    <header class="appbar">
+      <div class="appbar__inner">
+        <h1 class="appbar__name">Hot or Not</h1>
+        <p class="appbar__tagline">Is this place burning more than usual?</p>
+        <div class="appbar__actions">
           <nav class="app-nav" aria-label="Pages">
             <a href="/method.html">How it works</a>
           </nav>
+          <button type="button" class="button button--primary" id="story-start" aria-controls="story" aria-expanded="false" disabled>Tell me the story</button>
         </div>
       </div>
-      <p class="statusbar" id="data-info"></p>
       <p class="notice" id="notice" role="status" hidden></p>
     </header>
 
     <main class="page" id="content">
-      <section class="card picker" aria-labelledby="picker-heading">
-        <h2 class="panel-title" id="picker-heading" data-index="01">Pick a place</h2>
+      <section class="picker" aria-labelledby="picker-heading">
+        <h2 class="side-heading" id="picker-heading">Choose a place</h2>
         <div class="regions" id="region-presets">
           <span class="skeleton__line skeleton__line--inline" aria-hidden="true"></span>
         </div>
@@ -77,9 +74,14 @@
         <p class="area-summary muted" id="area-summary" aria-live="polite"></p>
         <p class="banner banner--warning" id="clip-warning" role="status" hidden></p>
         <div class="banner banner--error message" id="area-message" role="alert" hidden></div>
+        <div class="examples">
+          <h3 class="side-heading">Worth a look</h3>
+          <div class="examples__links" id="examples"></div>
+        </div>
+        <p class="data-note" id="data-info"></p>
       </section>
 
-      <section class="card story" id="story" aria-labelledby="story-title" tabindex="-1" hidden>
+      <section class="story" id="story" aria-labelledby="story-title" tabindex="-1" hidden>
         <div class="story__text" aria-live="polite" aria-atomic="true">
           <p class="story__step" id="story-step"></p>
           <h2 class="story__title" id="story-title">The story</h2>
@@ -94,9 +96,9 @@
         </div>
       </section>
 
-      <section class="card verdict" id="verdict-card" aria-labelledby="verdict-heading" data-verdict="none">
+      <section class="verdict" id="verdict-card" aria-labelledby="verdict-heading" data-verdict="none">
         <h2 class="verdict__heading" id="verdict-heading">
-          <span class="verdict__question panel-title" data-index="02">Hot or not?</span>
+          <span class="verdict__question">Hot or not?</span>
           <span class="verdict__where" id="verdict-where"></span>
         </h2>
         <div class="verdict__body" id="verdict" aria-live="polite"></div>
@@ -107,17 +109,16 @@
             That puts 2000 and today on one scale. <a href="/method.html">The full method</a> shows how, and how well it works.
           </p>
         </details>
-        <p class="try"><span class="try__label">Try:</span> <span class="try__links" id="examples"></span></p>
       </section>
 
-      <section class="card map-section" aria-labelledby="map-heading">
-        <h2 class="panel-title" id="map-heading" data-index="03">Map</h2>
+      <section class="map-section" aria-labelledby="map-heading">
+        <h2 class="visually-hidden" id="map-heading">Map</h2>
         <div class="map" id="map"></div>
       </section>
 
-      <section class="calendar-section card" id="calendar-section" aria-labelledby="calendar-heading" tabindex="-1">
+      <section class="calendar-section" id="calendar-section" aria-labelledby="calendar-heading" tabindex="-1">
         <div class="calendar-bar">
-          <h2 class="panel-title" id="calendar-heading" data-index="04">Month by month</h2>
+          <h2 class="section-heading" id="calendar-heading">Month by month</h2>
           <fieldset class="segmented" id="view-toggle">
             <legend class="visually-hidden">What the colors show</legend>
             <label><input type="radio" name="view" value="harmonized" checked><span>Fire count</span></label>

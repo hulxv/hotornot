@@ -4,14 +4,15 @@ import { outsideRegionsMask, regionsToGeoJSON } from "./geometry.js";
 
 /** @typedef {import("../../shared/contracts.js").RegionMeta} RegionMeta */
 
-// For a dark basemap: light ink, lit region outlines, and everything outside the regions dimmed.
+// For a dark basemap: white overlays, and everything outside the regions dimmed. Color on this
+// page means HOT or NOT, so the map's own marks stay neutral.
 export const MAP_COLORS = Object.freeze({
-  counted: "#5ee3d0",
+  counted: "#ffffff",
   noDataFill: "#0a0d12",
   outside: "#05070a",
   ink: "#ffffff",
   paper: "#0a0d12",
-  region: "#5ee3d0",
+  region: "#ffffff",
   land: "#4f5d7c",
   water: "#0e1626",
 });
@@ -76,7 +77,7 @@ export function overlayLayers() {
         // Without antialiasing there is no seam where world copies meet; the outlines cover the box edges.
         paint: { "fill-color": MAP_COLORS.outside, "fill-opacity": 0.42, "fill-antialias": false },
       },
-      { id: "hon-counted", type: "fill", source: "hon-counted", paint: { "fill-color": MAP_COLORS.counted, "fill-opacity": 0.28 } },
+      { id: "hon-counted", type: "fill", source: "hon-counted", paint: { "fill-color": MAP_COLORS.counted, "fill-opacity": 0.16 } },
       { id: "hon-uncovered", type: "fill", source: "hon-uncovered", paint: { "fill-color": MAP_COLORS.noDataFill, "fill-opacity": 0.5 } },
       { id: "hon-uncovered-hatch", type: "fill", source: "hon-uncovered", paint: { "fill-pattern": HATCH_IMAGE } },
       {

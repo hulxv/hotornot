@@ -42,7 +42,8 @@ export const BASEMAP_STYLE = "https://tiles.openfreemap.org/styles/fiord";
 
 const COORDINATE_DECIMALS = 6;
 const REGION_PADDING = 48;
-const OVERVIEW_PADDING = 24;
+// Wide sides because the region names at the world view are centred above boxes near the edges.
+const OVERVIEW_PADDING = { top: 40, bottom: 24, left: 110, right: 110 };
 // Clicks this close to a box still pick it, so the small boxes of the world view are easy to hit.
 const CLICK_SLOP_PX = 10;
 

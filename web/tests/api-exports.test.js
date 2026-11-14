@@ -377,6 +377,7 @@ describe("POST /api/current-month", () => {
         of_years: 24,
         provisional: Boolean(flag.provisional),
         partial_coverage: Boolean(flag.terra_only) || flag.viirs_missing_days > 0,
+        history: [...totals].filter(([y]) => y >= 2003).map(([year, total]) => ({ year, value: round4(total) })),
       });
 
       const [calendar] = await calendarMonthsFor(aoi, "2026-11", "2026-11");

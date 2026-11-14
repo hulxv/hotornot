@@ -156,7 +156,8 @@ export function buildMonths(monthlySums, monthFlags, mode, range = {}) {
 
 /**
  * Days 1 to `days_covered` of the last covered month, against the same days of that calendar
- * month in earlier years: the median over baseline years, the rank over 2003 to this year.
+ * month in earlier years: the median over baseline years, the rank over 2003 to this year, and
+ * each of those years' totals in `history`.
  * @param {Iterable<DayTotal>} dayTotals
  * @param {MonthFlags[]} monthFlags
  * @returns {CurrentMonthResponse}
@@ -175,11 +176,13 @@ export function currentMonth(dayTotals, monthFlags) {
   }
   const value = roundTo(totals.get(year));
   const baseline = [];
-  const rivals = [];
+  const history = [];
   for (const [peerYear, total] of totals) {
     if (inBaseline(peerYear)) baseline.push(roundTo(total));
-    if (peerYear >= BASELINE_START && peerYear <= year) rivals.push(roundTo(total));
+    if (peerYear >= BASELINE_START && peerYear <= year) history.push({ year: peerYear, value: roundTo(total) });
   }
+  history.sort((a, b) => a.year - b.year);
+  const rivals = history.map((entry) => entry.value);
   return {
     year,
     month,
@@ -190,5 +193,6 @@ export function currentMonth(dayTotals, monthFlags) {
     of_years: rivals.length,
     provisional: Boolean(flag.provisional),
     partial_coverage: partialCoverage(flag),
+    history,
   };
 }
