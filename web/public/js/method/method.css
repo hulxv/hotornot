@@ -1544,3 +1544,77 @@ main.method h3.ex-heading {
     opacity: 0.35;
   }
 }
+
+@media (max-width: 40rem) {
+  .site-header {
+    padding: 0.75rem 1rem;
+  }
+
+  main.method {
+    padding: 1.5rem 1rem 3rem;
+  }
+
+  .lede {
+    font-size: 1.0625rem;
+  }
+
+  main.method h2 {
+    margin-top: 2.5rem;
+  }
+
+  main.method h3.ex-heading {
+    margin-top: 2rem;
+  }
+
+  .toc {
+    padding: 1rem 1.125rem;
+  }
+
+  .eq-value,
+  .eq-op {
+    font-size: 1.25rem;
+  }
+
+  .ex-counters {
+    gap: 0.5rem 1.25rem;
+  }
+
+  .ex-counters dd {
+    font-size: 1.25rem;
+  }
+
+  .yr {
+    font-size: 0.75rem;
+  }
+
+  .site-footer {
+    padding: 0.875rem 1rem 2rem;
+  }
+}
+
+@media (pointer: coarse) {
+  .player button,
+  .dg-pickers select,
+  .explorable select {
+    min-height: 2.75rem;
+  }
+
+  .dg-control input[type="range"] {
+    min-height: 2.75rem;
+  }
+
+  .chart-controls label {
+    display: inline-flex;
+    gap: 0.5rem;
+    align-items: center;
+    min-height: 2.75rem;
+  }
+
+  .toc li {
+    padding: 0.4rem 0;
+  }
+
+  .tl-record {
+    height: 2.5rem;
+  }
+}
