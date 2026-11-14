@@ -48,7 +48,13 @@
     <header class="app-header">
       <div class="app-header__inner">
         <div class="brand">
-          <h1 class="brand__name">Hot or Not</h1>
+          <div class="brand__header">
+            <svg class="brand__icon" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/>
+            </svg>
+            <h1 class="brand__name">Hot or Not</h1>
+            <span class="brand__badge" aria-hidden="true"><span class="brand__pulse"></span>NASA FIRMS 2000–TODAY</span>
+          </div>
           <p class="brand__tagline">Is this place burning more than usual? Satellite fire detections since 2000.</p>
         </div>
         <div class="app-header__actions">
@@ -63,7 +69,10 @@
 
     <main class="page" id="content">
       <section class="picker" aria-labelledby="picker-heading">
-        <h2 class="section-title" id="picker-heading">Pick a place</h2>
+        <div class="section-header">
+          <h2 class="section-title" id="picker-heading">Pick a place</h2>
+          <p class="section-subtitle">Select a regional observatory or draw custom coordinates to analyze burning activity</p>
+        </div>
         <div class="regions" id="region-presets">
           <span class="skeleton__line skeleton__line--inline" aria-hidden="true"></span>
         </div>
@@ -93,6 +102,7 @@
       </section>
 
       <section class="card verdict" id="verdict-card" aria-labelledby="verdict-heading" data-verdict="none">
+        <div class="verdict__tag" aria-hidden="true"><span class="verdict__dot"></span>SURFACE ANOMALY ANALYSIS</div>
         <h2 class="verdict__heading" id="verdict-heading">
           <span class="verdict__question">Hot or not?</span>
           <span class="verdict__where" id="verdict-where"></span>
@@ -115,7 +125,9 @@
 
       <section class="calendar-section card" id="calendar-section" aria-labelledby="calendar-heading" tabindex="-1">
         <div class="calendar-bar">
-          <h2 class="section-title" id="calendar-heading">Month by month</h2>
+          <div class="calendar-bar__title-group">
+            <h2 class="section-title" id="calendar-heading">Month by month</h2>
+          </div>
           <fieldset class="segmented" id="view-toggle">
             <legend class="visually-hidden">What the colors show</legend>
             <label><input type="radio" name="view" value="harmonized" checked><span>Fire count</span></label>
