@@ -590,10 +590,10 @@ describe("ECharts options (server-side SVG)", () => {
     const built = detectionOption(view.detection, { width: 720 });
     assert.equal(built.option.xAxis.type, "log");
     const svgTexts = texts(render(built, 720));
-    for (const label of ["50%", "≈ 10 MW", "Chance MODIS detects it", "VIIRS fire radiative power, MW (log scale)", "100%", "0.5", "500"]) {
+    for (const label of ["50%", "≈ 10 MW", "Chance MODIS detects it", "VIIRS fire strength (radiative power), MW, log scale", "100%", "0.5", "500"]) {
       assert.ok(svgTexts.includes(label), label);
     }
-    assert.ok(texts(render(detectionOption(view.detection, { width: 340 }), 340)).includes("VIIRS FRP, MW (log)"));
+    assert.ok(texts(render(detectionOption(view.detection, { width: 340 }), 340)).includes("Fire strength, MW (log)"));
     const tip = built.option.tooltip.formatter([{ dataIndex: 6, seriesName: "All <land>", marker: "", value: [10, 0.5] }]);
     assert.equal(tip, "<b>10 MW</b><br>All &lt;land&gt;: 50%");
   });
@@ -620,12 +620,12 @@ describe("HTML", () => {
     const seam = methodView({ ...methodBodyLike(), validation: { nile_delta: validationNile } }).seams[0].model;
     const html = legendHtml(lineLegendItems(seam.series));
     assert.ok(html.includes(`stroke="${P.seam.ratio.color}"`) && html.includes('stroke-dasharray="6 4"'));
-    assert.ok(html.includes("Harmonized, model (shipped)"));
+    assert.ok(html.includes("Corrected, detection model (in use)"));
   });
 
   it("writes the scorecard with the decision and a mark on every score", () => {
     const html = scorecardHtml(card);
-    assert.match(html, /Decision: <strong>the detection model \(model_v1\)<\/strong> ships\./);
+    assert.match(html, /Decision: the app uses <strong>the detection model \(model_v1\)<\/strong>\./);
     assert.match(html, /<strong>3 of 4<\/strong> regions/);
     assert.ok(html.includes(escapeHtml(validationSummary.decision.rule)));
     assert.equal((html.match(/<td class="num (pass|fail)">/g) ?? []).length, 2 * 4 * 6);
@@ -739,6 +739,7 @@ describe("page", () => {
         },
         classList: { toggle: (name, on) => (element.classes = { ...element.classes, [name]: on }) },
         getAttribute: (name) => attrs[name] ?? null,
+        setAttribute: (name, value) => (attrs[name] = String(value)),
         addEventListener: (type, fn) => (listeners[type] ??= []).push(fn),
         dispatch: (type) => (listeners[type] ?? []).forEach((fn) => fn()),
         querySelector: () => null,

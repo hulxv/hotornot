@@ -48,11 +48,11 @@ const SCORE_METHOD_WORDS = Object.freeze({ raw: "raw VIIRS", ratio: "ratio", mod
 export const SEAM_SERIES_NAMES = Object.freeze({
   modis: "MODIS",
   viirs_raw: "Raw VIIRS",
-  ratio: "Harmonized, ratio",
-  model: "Harmonized, model",
+  ratio: "Corrected, ratio method",
+  model: "Corrected, detection model",
 });
 
-export const N20_SERIES_NAMES = Object.freeze({ snpp: "S-NPP, harmonized", n20: "NOAA-20, harmonized" });
+export const N20_SERIES_NAMES = Object.freeze({ snpp: "S-NPP, corrected", n20: "NOAA-20, corrected" });
 
 export const K_LEVEL_NAMES = Object.freeze({
   region_month: "from the region and month",
@@ -339,15 +339,15 @@ export function scorecard(summary, { regions, shipped }) {
       {
         id: "lyo_2012_2019",
         years: `${calibration.start_year}–${calibration.end_year}`,
-        title: `Leave two years out, ${calibration.start_year}–${calibration.end_year}`,
-        note: "Each pair of years is predicted by a fit on the other six. The decision uses this test.",
+        title: `Two years hidden at a time, ${calibration.start_year}–${calibration.end_year}`,
+        note: "Each pair of years is predicted from the other six. The decision uses this test.",
         rows: table(summary.lyo_2012_2019),
       },
       {
         id: "block_2020_2025",
         years: "2020–2025",
-        title: "Held-out block, 2020–2025",
-        note: `Predicted by a fit on ${calibration.start_year}–${calibration.end_year}. MODIS orbit drift makes this a harder test for every method.`,
+        title: "Hidden block, 2020–2025",
+        note: `Predicted from ${calibration.start_year}–${calibration.end_year}. MODIS orbit drift makes this a harder test for every method.`,
         rows: table(summary.block_2020_2025),
       },
     ],

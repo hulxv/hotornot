@@ -3,15 +3,19 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Method · Hot or Not</title>
-    <meta name="description" content="How Hot or Not puts MODIS and VIIRS hotspots on one scale, and the held-out tests that show it works.">
+    <title>How it works · Hot or Not</title>
+    <meta name="description" content="How Hot or Not makes the older MODIS and the newer VIIRS fire cameras count the same way, in five diagrams, and the tests on hidden years that show it works.">
     <link rel="stylesheet" href="/css/base.css">
     <link rel="stylesheet" href="/js/method/method.css">
     <link rel="modulepreload" href="/js/method/page.js">
+    <link rel="modulepreload" href="/js/method/diagrams-dom.js">
+    <link rel="modulepreload" href="/js/method/diagrams.js">
+    <link rel="modulepreload" href="/js/method/facts.js">
     <link rel="modulepreload" href="/js/method/option.js">
     <link rel="modulepreload" href="/js/method/html.js">
     <link rel="modulepreload" href="/js/method/transform.js">
     <link rel="modulepreload" href="/js/method/palette.js">
+    <link rel="modulepreload" href="/js/map/point-info.js">
     <link rel="modulepreload" href="/js/calendar/transform.js">
     <link rel="modulepreload" href="/js/calendar/palette.js">
     <link rel="modulepreload" href="/js/calendar/color.js">
@@ -34,109 +38,251 @@
       <a href="/">Back to the calendar</a>
     </header>
     <main id="content" class="method">
-      <h1>How Hot or Not puts MODIS and VIIRS on one scale</h1>
+      <h1>How it works</h1>
       <p class="lede">
-        A burning calendar from 2000 to today needs one unit across two generations of satellites. This page shows how
-        we count every VIIRS hotspot in MODIS units, and the tests on held-out years that show the seam is gone.
+        Satellites have spotted fires from space since 2000. In 2012 a sharper camera took over, and it sees many more
+        fires. These five diagrams show how we make the old and the new camera count the same way, and how we checked it.
       </p>
-      <div id="method-status" role="status">Loading the validation results…</div>
+      <div id="method-status" role="status">Loading the test results…</div>
       <noscript>
-        <p class="notice">The charts and scores on this page need JavaScript. The text still describes the method.</p>
+        <p class="notice">The diagrams, charts and scores on this page need JavaScript. The text still describes the method.</p>
       </noscript>
 
       <nav class="toc" aria-label="On this page">
         <ol>
-          <li><a href="#problem">The problem</a></li>
-          <li><a href="#weights">How a VIIRS hotspot becomes MODIS units</a></li>
-          <li><a href="#seam">The 2012 seam, on held-out years</a></li>
-          <li><a href="#scorecard-section">Scorecard and decision</a></li>
+          <li><a href="#satellites">Who watched when</a></li>
+          <li><a href="#problem">Same fire, two cameras</a></li>
+          <li><a href="#weights">How one VIIRS fire is counted</a></li>
+          <li><a href="#pipeline">From raw data to the calendar</a></li>
+          <li><a href="#seam">Tested on years it never saw</a></li>
+          <li><a href="#scorecard-section">The scores and the decision</a></li>
           <li><a href="#detection-section">When MODIS sees a fire</a></li>
           <li>
-            <a href="#k-section"><span data-method="model_v1">The coverage factor</span><span data-method="ratio_v1" hidden>The ratio factor</span></a>
+            <a href="#k-section"><span data-method="model_v1">The region factors</span><span data-method="ratio_v1" hidden>The ratio factors</span></a>
           </li>
-          <li><a href="#noaa20">From S-NPP to NOAA-20</a></li>
-          <li><a href="#caveats">Caveats</a></li>
+          <li><a href="#noaa20">The hand-over to NOAA-20</a></li>
+          <li><a href="#caveats">What to keep in mind</a></li>
         </ol>
       </nav>
 
-      <section id="problem" aria-labelledby="problem-title">
-        <h2 id="problem-title">The problem</h2>
+      <section id="satellites" aria-labelledby="satellites-title">
+        <h2 id="satellites-title">Who watched when</h2>
         <p class="prose">
-          Raw hotspot counts jump in 2012, when VIIRS joins MODIS: its 375 m pixels catch small fires that MODIS's 1 km
-          pixels miss, so it reports several times as many hotspots for the same burning, and every later month looks
-          like a record fire year. The years 2000 to 2011 exist only in MODIS form and cannot be observed again, so
-          VIIRS has to be brought to MODIS's scale, not the other way round. And MODIS is ending, so the correction has
-          to keep working on VIIRS alone.
+          Four satellites photograph fires for us. Two carry MODIS, the older camera. Two carry VIIRS, the newer and
+          sharper one. Our record uses one camera at a time.
         </p>
+        <figure class="diagram">
+          <div id="timeline" class="tl-box"></div>
+          <p id="timeline-info" class="diagram-info">Point at or tap a bar to see its years and what it does.</p>
+          <figcaption>
+            MODIS fills our record until 2011 and VIIRS from 2012, so the camera changes once, in 2012 (the dashed line).
+            In November 2026 one VIIRS satellite handed over to the other.
+          </figcaption>
+        </figure>
+        <details class="science">
+          <summary>For scientists: series sources by period</summary>
+          <p>The series uses one source per period, so the method changes exactly once, in 2012, for MODIS:</p>
+          <ul class="timeline">
+            <li><strong>November 2000 to June 2002:</strong> Terra MODIS only. Flagged as partial coverage and left out of the baseline.</li>
+            <li><strong>July 2002 to December 2011:</strong> Terra and Aqua MODIS, weight 1.</li>
+            <li><strong>January 2012 to the day before <span data-fill="viirs-switch">2 November 2026</span>:</strong> weighted S-NPP VIIRS, with NOAA-20 filling days S-NPP missed.</li>
+            <li><strong>From <span data-fill="viirs-switch">2 November 2026</span>:</strong> weighted NOAA-20 VIIRS.</li>
+          </ul>
+          <p>
+            MODIS from 2012 on stays out of the series. It is the ground truth for the tests below, and the calendar's raw
+            view.
+          </p>
+        </details>
+      </section>
+
+      <section id="problem" aria-labelledby="problem-title">
+        <h2 id="problem-title">Same fire, two cameras</h2>
+        <p class="prose">
+          MODIS sees the ground in squares 1 km across. VIIRS sees squares 375 m across, seven times smaller. A small fire
+          stands out more in a small square, so VIIRS spots fires that MODIS misses.
+        </p>
+        <figure class="diagram">
+          <div class="dg-control">
+            <label for="cameras-strength">Fire strength <span class="muted">(heat given off by the biggest fire)</span></label>
+            <input type="range" id="cameras-strength" min="0" max="2" step="0.05" value="1">
+            <output id="cameras-strength-value" for="cameras-strength">10 MW</output>
+          </div>
+          <p class="dg-counts" id="cameras-counts">MODIS sees 2 · VIIRS sees 6</p>
+          <div class="cameras">
+            <div class="camera">
+              <p class="camera-name">MODIS <span class="muted">1 km squares</span></p>
+              <div id="cameras-modis"></div>
+            </div>
+            <div class="camera">
+              <p class="camera-name">VIIRS <span class="muted">375 m squares</span></p>
+              <div id="cameras-viirs"></div>
+            </div>
+          </div>
+          <ul class="dg-legend">
+            <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><circle class="cam-fire" cx="7" cy="7" r="5"/></svg>A fire on the ground</li>
+            <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><rect class="cam-hit" x="1" y="1" width="12" height="12"/></svg>A square the camera reports as fire</li>
+          </ul>
+          <figcaption>
+            For the same burning, VIIRS reports 3 to 10 times as many fires as MODIS. Simply adding the two up would make
+            every year since 2012 look like a disaster.
+          </figcaption>
+        </figure>
+        <details class="science">
+          <summary>For scientists: the problem, and this picture's simple rule</summary>
+          <p>
+            Raw hotspot counts jump in 2012, when VIIRS joins MODIS: its 375 m pixels catch small fires that MODIS's 1 km
+            pixels miss, so it reports several times as many hotspots for the same burning, and every later month looks
+            like a record fire year. The years 2000 to 2011 exist only in MODIS form and cannot be observed again, so
+            VIIRS has to be brought to MODIS's scale, not the other way round. And MODIS is ending, so the correction has
+            to keep working on VIIRS alone.
+          </p>
+          <p>
+            The picture is a toy: a square is reported when the fires inside it give off at least 10 MW per km² of square,
+            which puts MODIS's limit near 10 MW and VIIRS's near 1.4 MW. Real detection also depends on the background
+            temperature, day or night, and the viewing angle. The measured curve is in "When MODIS sees a fire" below.
+          </p>
+        </details>
       </section>
 
       <section id="weights" aria-labelledby="weights-title">
-        <h2 id="weights-title">How a VIIRS hotspot becomes MODIS units</h2>
+        <h2 id="weights-title">How one VIIRS fire is counted</h2>
+        <p class="badge" data-mock="detection" hidden>Mock numbers, not results</p>
         <p class="prose">
-          Hot or Not counts each VIIRS hotspot as the number of MODIS hotspots it stands for, so the whole record, from
-          2000 to today, is in one unit: MODIS-equivalent hotspots. A MODIS hotspot counts 1. A VIIRS hotspot counts its
-          weight <var>w</var> = <var>s</var> × <var>k</var>, and a month's harmonized value is the sum of the weights.
+          We count everything in MODIS fires. A MODIS fire counts as 1. A VIIRS fire counts as the chance that MODIS would
+          have seen it too, times a factor for its region and month.
         </p>
-        <dl class="prose terms">
-          <dt><var>s</var>, the detection share</dt>
-          <dd>
-            The modeled chance that Aqua MODIS would have detected the same fire, shared among the VIIRS hotspots that
-            fall inside one MODIS pixel, so a fire front with five VIIRS hotspots and one MODIS hotspot adds up to about
-            1, not 5. The model learns from 2012–2019 overpasses where Aqua and S-NPP looked at the same place within 15
-            minutes, including the times MODIS looked and missed. It uses VIIRS-side features only, so it scores any VIIRS
-            hotspot, including near-real-time ones and those after MODIS ends.
-          </dd>
-          <dt><var>k</var>, the coverage factor</dt>
-          <dd>
-            MODIS hotspots divided by the summed detection shares, per region and calendar month over 2012–2019. It
-            carries the sampling differences <var>s</var> cannot see: Terra's mid-morning overpass, which no VIIRS
-            satellite matches, and the outer part of the wider VIIRS swath.
-          </dd>
-          <dt>The fallback, <code>ratio_v1</code></dt>
-          <dd>
-            Every VIIRS hotspot in a region and calendar month weighs <var>r</var> = MODIS count ÷ S-NPP count over
-            2012–2019. It needs no model, and it is the benchmark the model has to beat.
-          </dd>
-        </dl>
-        <p class="prose">The series uses one source per period, so the method changes exactly once, in 2012, for MODIS:</p>
-        <ul class="prose timeline">
-          <li><strong>November 2000 to June 2002:</strong> Terra MODIS only. Flagged as partial coverage and left out of the baseline.</li>
-          <li><strong>July 2002 to December 2011:</strong> Terra and Aqua MODIS, weight 1.</li>
-          <li><strong>January 2012 to the day before <span data-fill="viirs-switch">2 November 2026</span>:</strong> weighted S-NPP VIIRS, with NOAA-20 filling days S-NPP missed.</li>
-          <li><strong>From <span data-fill="viirs-switch">2 November 2026</span>:</strong> weighted NOAA-20 VIIRS.</li>
-        </ul>
-        <p class="prose">
-          MODIS from 2012 on stays out of the series. It is the ground truth for the tests below, and the calendar's raw
-          view.
-        </p>
+        <figure class="diagram">
+          <div class="dg-control" id="counted-strength-row">
+            <label for="counted-strength">Fire strength <span class="muted">(heat given off)</span></label>
+            <input type="range" id="counted-strength" min="-1" max="3" step="0.05" value="0.7">
+            <output id="counted-strength-value" for="counted-strength">5 MW</output>
+          </div>
+          <div class="dg-pickers">
+            <label for="counted-region">Region</label>
+            <select id="counted-region"></select>
+            <label for="counted-month">Month</label>
+            <select id="counted-month"></select>
+          </div>
+          <div id="counted-curve" class="cv-box"></div>
+          <p id="counted-chance" class="dg-sentence"></p>
+          <div id="counted-eq"></div>
+          <p id="counted-note" class="muted" hidden></p>
+          <figcaption>
+            The factor makes up for the extra looks MODIS had, like Terra's morning pass, which no VIIRS satellite makes.
+            It is the same for every fire in a region and month.
+          </figcaption>
+        </figure>
+        <details class="science">
+          <summary>For scientists: the weight <var>w</var> = <var>s</var> × <var>k</var></summary>
+          <p>
+            Hot or Not counts each VIIRS hotspot as the number of MODIS hotspots it stands for, so the whole record, from
+            2000 to today, is in one unit: MODIS-equivalent hotspots. A MODIS hotspot counts 1. A VIIRS hotspot counts its
+            weight <var>w</var> = <var>s</var> × <var>k</var>, and a month's harmonized value is the sum of the weights.
+          </p>
+          <dl class="terms">
+            <dt><var>s</var>, the detection share</dt>
+            <dd>
+              The modeled chance that Aqua MODIS would have detected the same fire, shared among the VIIRS hotspots that
+              fall inside one MODIS pixel, so a fire front with five VIIRS hotspots and one MODIS hotspot adds up to about
+              1, not 5. The model learns from 2012–2019 overpasses where Aqua and S-NPP looked at the same place within 15
+              minutes, including the times MODIS looked and missed. It uses VIIRS-side features only, so it scores any VIIRS
+              hotspot, including near-real-time ones and those after MODIS ends.
+            </dd>
+            <dt><var>k</var>, the coverage factor</dt>
+            <dd>
+              MODIS hotspots divided by the summed detection shares, per region and calendar month over 2012–2019. It
+              carries the sampling differences <var>s</var> cannot see: Terra's mid-morning overpass, which no VIIRS
+              satellite matches, and the outer part of the wider VIIRS swath.
+            </dd>
+            <dt>The fallback, <code>ratio_v1</code></dt>
+            <dd>
+              Every VIIRS hotspot in a region and calendar month weighs <var>r</var> = MODIS count ÷ S-NPP count over
+              2012–2019. It needs no model, and it is the benchmark the model has to beat.
+            </dd>
+          </dl>
+          <p>
+            The diagram uses the all-land curve, which holds cluster size at 1 (a lone hotspot) and averages over pixel
+            size and day or night, and the S-NPP <var>k</var>. NOAA-20 has its own <var>k</var>, scaled to S-NPP over the
+            years both flew. The map's tooltips show each hotspot's actual weight.
+          </p>
+        </details>
+      </section>
+
+      <section id="pipeline" aria-labelledby="pipeline-title">
+        <h2 id="pipeline-title">From raw data to the calendar</h2>
+        <p class="prose">Six steps turn NASA's fire files into the calendar. Pick a step to see what it does.</p>
+        <ol id="pipeline-steps" class="pipeline"></ol>
+        <div id="pipeline-detail" class="pipeline-detail" aria-live="polite"></div>
+        <p id="pipeline-run" class="muted small"></p>
       </section>
 
       <section id="seam" aria-labelledby="seam-title">
-        <h2 id="seam-title">The 2012 seam, on held-out years</h2>
+        <h2 id="seam-title">Tested on years it never saw</h2>
         <p class="badge" data-mock="validation" hidden>Mock numbers, not results</p>
         <p class="prose">
-          After 2012 both sensors flew, so real MODIS counts show what the harmonized series should be. Raw VIIRS should
-          sit far above MODIS and harmonized VIIRS should track it. Every harmonized month here comes from a fit that
-          never saw it: each pair of years in 2012–2019 is left out in turn and predicted from the other six, and
-          2020–2025 is predicted from a fit on 2012–2019.<span id="raw-multiples"></span>
+          From 2012 to 2019 both cameras flew, so we know what MODIS really counted. We hide two years, learn from the
+          other six, and check our count for the hidden years against MODIS. Four tests hide every year once.
+        </p>
+        <figure class="diagram" id="tests">
+          <div id="test-blocks"></div>
+          <ul class="dg-legend">
+            <li><span class="yr-key yr-learn" aria-hidden="true"></span>Learned from</li>
+            <li><span class="yr-key yr-hidden" aria-hidden="true"></span>Hidden, then predicted</li>
+          </ul>
+          <div class="player" id="test-controls">
+            <button type="button" id="test-back">Back</button>
+            <button type="button" id="test-play">Play</button>
+            <button type="button" id="test-next">Next</button>
+          </div>
+          <p id="test-title" class="step-title" aria-live="polite"></p>
+          <p id="test-text" class="step-text"></p>
+          <div id="test-bars" class="ts-box"></div>
+          <p id="test-words" class="visually-hidden"></p>
+          <figcaption>
+            Orange means we counted more than MODIS, blue fewer. The shaded band is within 15%. A harder test, on 2020 to
+            2025, is in the scores below.
+          </figcaption>
+        </figure>
+
+        <h3>Month by month</h3>
+        <p class="prose">
+          Each chart shows one region from 2012 to 2025: what MODIS counted, raw VIIRS, and our corrected count. Every
+          corrected month comes from a test that never saw it.
         </p>
         <div class="chart-controls">
           <label><input type="checkbox" id="show-raw" checked> Show raw VIIRS</label>
-          <span class="muted">Turn it off to compare the harmonized lines with MODIS at full height.</span>
+          <span class="muted">Turn it off to compare the corrected lines with MODIS at full height.</span>
         </div>
         <div class="surface legend-bar" id="seam-legend"></div>
         <div class="chart-grid" id="seam-charts" data-loading></div>
+        <details class="science">
+          <summary>For scientists: the held-out folds</summary>
+          <p>
+            After 2012 both sensors flew, so real MODIS counts show what the harmonized series should be. Raw VIIRS should
+            sit far above MODIS and harmonized VIIRS should track it. Every harmonized month here comes from a fit that
+            never saw it: each pair of years in 2012–2019 is left out in turn and predicted from the other six, and
+            2020–2025 is predicted from a fit on 2012–2019.<span id="raw-multiples"></span> The shaded bands on the charts
+            are the folds.
+          </p>
+        </details>
       </section>
 
       <section id="scorecard-section" aria-labelledby="scorecard-title">
-        <h2 id="scorecard-title">Scorecard and decision</h2>
+        <h2 id="scorecard-title">The scores and the decision</h2>
         <p class="badge" data-mock="validation" hidden>Mock numbers, not results</p>
         <p class="prose">
-          Two numbers per region and method, both on held-out years: the mean error of annual totals against MODIS, and
-          the correlation of monthly totals with MODIS. Correlation alone cannot catch a change of scale, since raw VIIRS
-          follows the seasons closely while counting several times too many, so the rule needs both. The model ships
-          when it meets both limits in at least three of the four regions and beats the ratio method's annual error.
+          Two scores per region, both on hidden years: how far the yearly totals land from MODIS, and how closely the
+          months line up. A method has to do well on both.
         </p>
+        <details class="science">
+          <summary>For scientists: why both scores</summary>
+          <p>
+            The first is the mean error of annual totals against MODIS, the second the Pearson correlation of monthly
+            totals with MODIS. Correlation alone cannot catch a change of scale, since raw VIIRS follows the seasons closely
+            while counting several times too many, so the rule needs both. The model ships when it meets both limits in at
+            least three of the four regions and beats the ratio method's annual error.
+          </p>
+        </details>
         <div id="scorecard" data-loading></div>
       </section>
 
@@ -144,82 +290,130 @@
         <h2 id="detection-title">When MODIS sees a fire</h2>
         <p class="badge" data-mock="detection" hidden>Mock numbers, not results</p>
         <p class="prose">
-          The detection share comes from a logistic regression on VIIRS fire radiative power (FRP), pixel size, day or
-          night, land cover and cluster size. Its curve against FRP is why one ratio cannot fit every place: small
-          agricultural burns, which MODIS mostly misses, get a low detection share, and large fires, which both sensors
-          see, a high one.
+          This is the curve the Learn step found: the stronger the fire, the more likely MODIS saw it too. It comes from
+          the moments both cameras looked at the same place.
         </p>
+        <details class="science">
+          <summary>For scientists: the detection model</summary>
+          <p>
+            The detection share comes from a logistic regression on VIIRS fire radiative power (FRP), pixel size, day or
+            night, land cover and cluster size. Its curve against FRP is why one ratio cannot fit every place: small
+            agricultural burns, which MODIS mostly misses, get a low detection share, and large fires, which both sensors
+            see, a high one.
+          </p>
+        </details>
         <div id="detection" data-loading></div>
       </section>
 
       <section id="k-section" aria-labelledby="k-title">
         <h2 id="k-title">
-          <span data-method="model_v1">The coverage factor <var>k</var></span>
-          <span data-method="ratio_v1" hidden>The ratio factor <var>r</var></span>
+          <span data-method="model_v1">The region factors</span>
+          <span data-method="ratio_v1" hidden>The ratio factors</span>
         </h2>
         <p class="prose" data-method="model_v1">
-          One value per region, satellite and calendar month, estimated over 2012–2019. Where a region and month had
-          fewer than 50 MODIS hotspots in those years, it is pooled with the two adjacent months, and if that is still
-          too thin, one value covers the region's whole year. NOAA-20 gets its own <var>k</var>, scaled to S-NPP over
-          the years both flew.
+          One factor per region and month: the one in "How one VIIRS fire is counted". Each cell shows its value.
         </p>
         <p class="prose" data-method="ratio_v1" hidden>
-          The weight of every VIIRS hotspot in this data version: MODIS hotspots divided by S-NPP hotspots per region and
-          calendar month over 2012–2019, pooled with the two adjacent months where a month had fewer than 50 MODIS
-          hotspots, and over the whole year if that is still too thin. NOAA-20 gets its own <var>r</var>, scaled to
-          S-NPP over the years both flew.
+          In this data version every VIIRS fire in a region and month counts this factor, whatever its strength. Each cell
+          shows its value.
         </p>
+        <details class="science">
+          <summary>For scientists: how the factor is estimated</summary>
+          <p data-method="model_v1">
+            The coverage factor <var>k</var>: one value per region, satellite and calendar month, estimated over 2012–2019.
+            Where a region and month had fewer than 50 MODIS hotspots in those years, it is pooled with the two adjacent
+            months, and if that is still too thin, one value covers the region's whole year. NOAA-20 gets its own
+            <var>k</var>, scaled to S-NPP over the years both flew.
+          </p>
+          <p data-method="ratio_v1" hidden>
+            The ratio factor <var>r</var>: MODIS hotspots divided by S-NPP hotspots per region and calendar month over
+            2012–2019, pooled with the two adjacent months where a month had fewer than 50 MODIS hotspots, and over the
+            whole year if that is still too thin. NOAA-20 gets its own <var>r</var>, scaled to S-NPP over the years both
+            flew.
+          </p>
+        </details>
         <div id="k-table" class="surface" data-loading></div>
       </section>
 
       <section id="noaa20" aria-labelledby="noaa20-title">
-        <h2 id="noaa20-title">From S-NPP to NOAA-20</h2>
+        <h2 id="noaa20-title">The hand-over to NOAA-20</h2>
         <p class="badge" data-mock="validation" hidden>Mock numbers, not results</p>
         <p class="prose">
-          S-NPP stopped delivering data on <span data-fill="viirs-switch">2 November 2026</span>. NOAA-20 carries the
-          same VIIRS instrument and fire algorithm in the same orbit, about 50 minutes apart, and the two overlap from
-          April 2018, so the second switch is calibrated VIIRS to VIIRS. On the years both flew, the series built on
-          NOAA-20 has to track the one built on S-NPP.
+          S-NPP stopped sending data on <span data-fill="viirs-switch">2 November 2026</span>. NOAA-20 carries the same
+          camera and has flown beside it since 2018, so we checked that the two give the same counts.
         </p>
+        <details class="science">
+          <summary>For scientists: the second switch</summary>
+          <p>
+            NOAA-20 carries the same VIIRS instrument and fire algorithm in the same orbit, about 50 minutes apart, and the
+            two overlap from April 2018, so the second switch is calibrated VIIRS to VIIRS. On the years both flew, the
+            series built on NOAA-20 has to track the one built on S-NPP.
+          </p>
+        </details>
         <div id="n20-scores"></div>
         <div class="surface legend-bar" id="n20-legend"></div>
         <div class="chart-grid" id="n20-charts" data-loading></div>
       </section>
 
       <section id="caveats" aria-labelledby="caveats-title">
-        <h2 id="caveats-title">Caveats</h2>
+        <h2 id="caveats-title">What to keep in mind</h2>
         <ul class="prose caveats">
-          <li>
-            <strong>S-NPP ended on <span data-fill="viirs-switch">2 November 2026</span>.</strong> From that day the series
-            runs on NOAA-20 alone, calibrated against S-NPP rather than against MODIS. NOAA-20 has had its own data gaps
-            since 5 November 2026: a day with no NOAA-20 overpass marks its month as partial coverage, so an outage never
-            reads as a quiet month.
+          <li id="caveat-switch">
+            <strong>S-NPP ended on <span data-fill="viirs-switch">2 November 2026</span>.</strong> Since then NOAA-20
+            alone carries the record, and a day it misses marks its month as incomplete.
           </li>
-          <li>
-            <strong>MODIS orbit drift.</strong> Terra and Aqua have drifted from their nominal crossing times, which pulls
-            Aqua's overpasses away from S-NPP's and changes what MODIS samples. We fit only on 2012–2019 and report
-            2020–2025 separately, so part of the larger error on those years is drift in the ground truth rather than in
-            the harmonization.<span id="drift-numbers"></span> When MODIS ends, nothing in the series changes: it has used
-            weighted VIIRS since 2012.
+          <li id="caveat-drift">
+            <strong>MODIS has drifted.</strong> Its satellites no longer pass over at their usual times, which makes the
+            tests on 2020 to 2025 harder to pass.
           </li>
-          <li>
-            <strong>Gas-flare masking.</strong> Gas flares and other static heat sources trigger the same fire algorithm.
-            The science-quality archive labels them and we drop them, but near-real-time data, which covers the most
-            recent months, carries no label. We mask near-real-time hotspots close to a static source known from the
-            archive, or seen at the same spot on many days within 90 days. In the Nile Delta flares outnumber farm fires,
-            so recent months can still hold a few flares, or miss a fire next to one, until the archive replaces them.
+          <li id="caveat-flares">
+            <strong>A few gas flares can slip through.</strong> The newest months are not labelled yet, so for a few months
+            a flare can be counted as a fire, or a fire right next to one missed.
           </li>
-          <li>
-            <strong>Bolivia and Brazil are not covered.</strong> The Northern Argentina and Paraguayan Chaco region
-            includes parts of Bolivia and Brazil, whose fire records we did not download. Cells centered there show as
-            no data, never as zero, and an area drawn across them counts only the covered cells.
+          <li id="caveat-coverage">
+            <strong>Bolivia and Brazil are not covered.</strong> Those parts of the Chaco region show as no data, never as
+            zero.
           </li>
-          <li>
-            <strong>Partial and provisional months.</strong> Before July 2002 only Terra flew, so those months are flagged
-            and left out of the 2003–2025 baseline. Near-real-time months are provisional until the archive replaces
-            them, about five months later.
+          <li id="caveat-recent">
+            <strong>The newest months may change.</strong> They are early numbers until NASA's archive replaces them, and
+            months before July 2002 had only one MODIS satellite.
           </li>
         </ul>
+        <details class="science">
+          <summary>For scientists: the caveats in full</summary>
+          <ul class="caveats">
+            <li>
+              <strong>S-NPP ended on <span data-fill="viirs-switch">2 November 2026</span>.</strong> From that day the
+              series runs on NOAA-20 alone, calibrated against S-NPP rather than against MODIS. NOAA-20 has had its own data
+              gaps since 5 November 2026: a day with no NOAA-20 overpass marks its month as partial coverage, so an outage
+              never reads as a quiet month.
+            </li>
+            <li>
+              <strong>MODIS orbit drift.</strong> Terra and Aqua have drifted from their nominal crossing times, which pulls
+              Aqua's overpasses away from S-NPP's and changes what MODIS samples. We fit only on 2012–2019 and report
+              2020–2025 separately, so part of the larger error on those years is drift in the ground truth rather than in
+              the harmonization.<span id="drift-numbers"></span> When MODIS ends, nothing in the series changes: it has used
+              weighted VIIRS since 2012.
+            </li>
+            <li>
+              <strong>Gas-flare masking.</strong> Gas flares and other static heat sources trigger the same fire algorithm.
+              The science-quality archive labels them and we drop them, but near-real-time data, which covers the most
+              recent months, carries no label. We mask near-real-time hotspots close to a static source known from the
+              archive, or seen at the same spot on many days within 90 days. In the Nile Delta flares outnumber farm fires,
+              so recent months can still hold a few flares, or miss a fire next to one, until the archive replaces them.
+            </li>
+            <li>
+              <strong>Bolivia and Brazil are not covered.</strong> The Northern Argentina and Paraguayan Chaco region
+              includes parts of Bolivia and Brazil, whose fire records we did not download. Cells centered there show as
+              no data, never as zero, and an area drawn across them counts only the covered cells.
+            </li>
+            <li>
+              <strong>Partial and provisional months.</strong> Before July 2002 only Terra flew, so those months are
+              flagged and left out of the 2003–2025 baseline. Near-real-time months are provisional until the archive
+              replaces them, about five months later.
+            </li>
+          </ul>
+        </details>
       </section>
     </main>
     <footer class="site-footer">

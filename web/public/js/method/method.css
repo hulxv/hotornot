@@ -2,11 +2,21 @@
   --page: #17191e;
   --border: #2c3038;
   --panel: #111317;
+  --raised: #1f2228;
+  --line: #3a3e46;
+  --control-border: #8a8d94;
   --accent: #ececec;
   --notice-bg: #2a180a;
   --notice-edge: #f97316;
   --pass: #ececec;
   --fail: #fca5a5;
+  /* The diagrams' colors: the main page's HOT and NOT (the anomaly ramp's ends) for more and
+     fewer fires, gray for MODIS and white for VIIRS. */
+  --hot: #fdb863;
+  --hot-fill: rgb(253 184 99 / 0.22);
+  --not: #9ecae1;
+  --modis: #a6a8ad;
+  --viirs: #ececec;
 }
 
 body {
@@ -180,13 +190,6 @@ main.method h2 {
 }
 
 .terms var {
-  display: inline-block;
-  padding: 0.1rem 0.375rem;
-  border-radius: 0.25rem;
-  background: var(--panel);
-  border: 1px solid var(--border);
-  font-style: normal;
-  font-family: var(--font-mono, monospace);
   font-weight: 600;
 }
 
@@ -571,5 +574,628 @@ table.data .num {
   .k-table td {
     min-width: 2.4rem;
     padding: 0.3rem 0.15rem;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+section[id] {
+  scroll-margin-top: 1rem;
+}
+
+.small {
+  font-size: 0.875rem;
+}
+
+details.science {
+  max-width: 48rem;
+  margin: 1.25rem 0;
+}
+
+details.science > summary {
+  cursor: pointer;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  padding: 0.25rem 0;
+}
+
+details.science > summary:hover {
+  color: var(--fg);
+}
+
+details.science[open] {
+  padding-bottom: 0.25rem;
+  border-bottom: 1px solid var(--border);
+}
+
+details.science p,
+details.science li,
+details.science dd {
+  line-height: 1.6;
+}
+
+.diagram {
+  max-width: 60rem;
+  margin: 1.75rem 0 0;
+}
+
+.diagram figcaption {
+  max-width: 48rem;
+  margin-top: 1rem;
+  color: var(--muted);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+}
+
+.diagram-info {
+  min-height: 3.2em;
+  max-width: 48rem;
+  margin: 1rem 0 0;
+  font-size: 0.9375rem;
+}
+
+.dg-control {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 1rem;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+
+.dg-control label {
+  flex: 0 0 100%;
+  font-weight: 600;
+}
+
+.dg-control input[type="range"] {
+  flex: 1 1 12rem;
+  max-width: 26rem;
+  min-height: 1.5rem;
+  margin: 0;
+  accent-color: var(--fg);
+  cursor: pointer;
+}
+
+.dg-control output {
+  min-width: 5rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.dg-counts {
+  margin: 0.5rem 0 1rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.dg-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem 1.5rem;
+  margin: 0.875rem 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: 0.875rem;
+  color: var(--muted);
+}
+
+.dg-legend li {
+  display: inline-flex;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.dg-small {
+  font-size: 12px;
+  fill: var(--fg);
+}
+
+.dg-muted {
+  fill: var(--muted);
+}
+
+.dg-label {
+  font-size: 13px;
+  font-weight: 600;
+  fill: var(--fg);
+}
+
+.dg-gridline {
+  stroke: var(--border);
+}
+
+/* Who watched when */
+
+.tl {
+  --tl-label: 8.5rem;
+  --tl-gap: 0.75rem;
+  position: relative;
+  display: grid;
+  grid-template-columns: var(--tl-label) minmax(0, 1fr);
+  column-gap: var(--tl-gap);
+  row-gap: 0.5rem;
+  align-items: center;
+}
+
+.tl-label {
+  font-size: 0.875rem;
+  line-height: 1.2;
+}
+
+.tl-camera {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.tl-track {
+  position: relative;
+  height: 1.5rem;
+}
+
+.tl-axis {
+  height: 1.5rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.tl-tick {
+  position: absolute;
+  bottom: 0;
+  height: 0.25rem;
+  border-left: 1px solid var(--line);
+}
+
+.tl-major {
+  height: 0.4rem;
+  border-left-color: var(--muted);
+}
+
+.tl-year {
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  font-size: 0.75rem;
+  line-height: 1;
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.tl-record {
+  height: 2rem;
+}
+
+.tl-bar,
+.tl-seg {
+  position: absolute;
+  top: 0;
+  display: flex;
+  align-items: center;
+  height: 100%;
+  margin: 0;
+  padding: 0 0.5rem;
+  border: 0;
+  border-radius: 2px;
+  font: inherit;
+  font-size: 0.8125rem;
+  line-height: 1;
+  color: var(--page);
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.tl-seg {
+  font-weight: 600;
+}
+
+.tl-seg + .tl-seg {
+  box-shadow: inset 2px 0 0 var(--page);
+}
+
+.tl-modis {
+  background: var(--modis);
+}
+
+.tl-viirs {
+  background: var(--viirs);
+}
+
+.tl-bar:hover,
+.tl-seg:hover {
+  outline: 2px solid var(--fg);
+  outline-offset: 2px;
+}
+
+/* Out of the grid's flow, so it does not take the tracks' cells. */
+.tl-switch {
+  position: absolute;
+  top: 1.5rem;
+  bottom: -0.25rem;
+  left: calc(var(--tl-label) + var(--tl-gap) + (100% - var(--tl-label) - var(--tl-gap)) * var(--at));
+  border-left: 1px dashed var(--fg);
+  pointer-events: none;
+}
+
+/* Same fire, two cameras */
+
+.cameras {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem 2rem;
+}
+
+.camera {
+  flex: 1 1 13rem;
+  max-width: 17rem;
+}
+
+.camera-name {
+  margin: 0 0 0.375rem;
+  font-weight: 600;
+}
+
+.cam-svg {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+
+.cam-land {
+  fill: var(--raised);
+}
+
+.cam-grid {
+  fill: none;
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.cam-edge {
+  fill: none;
+  stroke: var(--control-border);
+}
+
+.cam-hit {
+  fill: var(--hot-fill);
+  stroke: var(--hot);
+  stroke-width: 2;
+}
+
+.cam-fire {
+  fill: var(--hot);
+  stroke: var(--page);
+  stroke-width: 1;
+}
+
+/* How one VIIRS fire is counted */
+
+.dg-pickers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 0.75rem;
+  align-items: center;
+  margin: 0.75rem 0 1rem;
+}
+
+.dg-pickers label {
+  font-weight: 600;
+}
+
+.dg-pickers select {
+  min-height: 2.25rem;
+  max-width: 100%;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--control-border);
+  border-radius: 2px;
+  background: var(--panel);
+  color: var(--fg);
+  font: inherit;
+}
+
+.dg-pickers select + label {
+  margin-left: 0.5rem;
+}
+
+.cv-box {
+  max-width: 40rem;
+}
+
+.cv-svg {
+  display: block;
+}
+
+.cv-line {
+  fill: none;
+  stroke: var(--fg);
+  stroke-width: 2.5;
+}
+
+.cv-guide {
+  fill: none;
+  stroke: var(--muted);
+  stroke-dasharray: 3 3;
+}
+
+.cv-marker {
+  fill: var(--hot);
+  stroke: var(--page);
+  stroke-width: 2;
+}
+
+.dg-sentence {
+  max-width: 48rem;
+  margin: 0.75rem 0 0;
+  font-size: 1.0625rem;
+}
+
+.eq {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  align-items: center;
+  margin: 1rem 0 0;
+}
+
+.eq-term {
+  display: inline-flex;
+  flex-direction: column;
+}
+
+.eq-value {
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.2;
+  font-variant-numeric: tabular-nums;
+}
+
+.eq-result .eq-value {
+  font-size: 1.125rem;
+}
+
+.eq-name {
+  font-size: 0.8125rem;
+  color: var(--muted);
+}
+
+.eq-op {
+  font-size: 1.5rem;
+  color: var(--muted);
+}
+
+/* From raw data to the calendar */
+
+.pipeline {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  margin: 1.5rem 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pipeline li {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.25rem;
+}
+
+.pipeline button {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  width: 100%;
+  max-width: 24rem;
+  padding: 0.625rem 0.75rem;
+  border: 1px solid var(--control-border);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pipeline button:hover {
+  background: var(--raised);
+}
+
+.pipeline button[aria-pressed="true"] {
+  background: var(--fg);
+  border-color: var(--fg);
+  color: var(--page);
+}
+
+.pipe-name {
+  font-weight: 600;
+}
+
+.pipe-figure {
+  font-size: 0.8125rem;
+  opacity: 0.85;
+}
+
+.pipe-arrow {
+  flex: none;
+  margin-left: 1rem;
+  transform: rotate(90deg);
+  fill: none;
+  stroke: var(--muted);
+  stroke-width: 1.5;
+}
+
+.pipeline-detail {
+  max-width: 48rem;
+  margin-top: 1.25rem;
+  padding-left: 1rem;
+  border-left: 2px solid var(--fg);
+}
+
+.pipeline-detail h3 {
+  margin: 0 0 0.375rem;
+  font-size: 1.0625rem;
+}
+
+.pipeline-detail p {
+  margin: 0.375rem 0;
+  line-height: 1.6;
+}
+
+@media (min-width: 60rem) {
+  .pipeline {
+    flex-direction: row;
+    gap: 0;
+  }
+
+  .pipeline li {
+    flex: 1 1 0;
+    flex-direction: row;
+    align-items: stretch;
+    min-width: 0;
+  }
+
+  .pipeline button {
+    max-width: none;
+  }
+
+  .pipe-arrow {
+    align-self: center;
+    margin: 0 0.25rem;
+    transform: none;
+  }
+}
+
+/* Tested on years it never saw */
+
+.yr-blocks {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 0.25rem;
+  max-width: 40rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.yr {
+  padding: 0.375rem 0;
+  border: 2px solid transparent;
+  border-radius: 2px;
+  text-align: center;
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.yr-learn {
+  background: var(--modis);
+  color: var(--page);
+}
+
+.yr-hidden {
+  border: 2px dashed var(--fg);
+  color: var(--fg);
+  font-weight: 600;
+}
+
+.yr-tested {
+  border-color: var(--fg);
+  color: var(--fg);
+}
+
+.yr-key {
+  display: inline-block;
+  width: 1.5rem;
+  height: 1rem;
+  border-radius: 2px;
+}
+
+.player {
+  display: flex;
+  gap: 0.5rem;
+  margin: 1rem 0 0;
+}
+
+.player[hidden] {
+  display: none;
+}
+
+.player button {
+  min-width: 4.5rem;
+  min-height: 2.25rem;
+  padding: 0.375rem 0.875rem;
+  border: 1px solid var(--control-border);
+  border-radius: 2px;
+  background: transparent;
+  color: var(--fg);
+  font: inherit;
+  cursor: pointer;
+}
+
+.player button:hover:not(:disabled) {
+  background: var(--raised);
+}
+
+.player button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.step-title {
+  margin: 1.25rem 0 0.25rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+}
+
+.step-text {
+  max-width: 48rem;
+  margin: 0 0 1rem;
+}
+
+.ts-box {
+  max-width: 44rem;
+}
+
+.ts-svg {
+  display: block;
+}
+
+.ts-band {
+  fill: var(--raised);
+}
+
+.ts-zero {
+  stroke: var(--muted);
+}
+
+.ts-limit {
+  stroke: var(--fg);
+  stroke-dasharray: 4 3;
+}
+
+.ts-over {
+  fill: var(--hot);
+}
+
+.ts-under {
+  fill: var(--not);
+}
+
+.ts-ours {
+  fill: var(--fg);
+}
+
+@media (max-width: 40rem) {
+  .tl {
+    --tl-label: 5.5rem;
+    --tl-gap: 0.5rem;
+  }
+
+  .tl-bar,
+  .tl-seg {
+    padding: 0 0.375rem;
   }
 }
