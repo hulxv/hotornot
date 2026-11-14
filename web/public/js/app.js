@@ -245,7 +245,7 @@ export async function startApp(doc = document) {
   const throughDate = lastRecordDate(metadata);
   /** @type {{ from: string, to: string } | null} null follows the verdict's month */
   let pointsRange = null;
-  /** @type {number | null} the chart year whose days the map shows, while `pointsRange` is set from the chart */
+  /** @type {number | null} the chart year the map shows, while `pointsRange` was set from the chart */
   let mapYear = null;
   ui.pointsFrom.min = ui.pointsTo.min = TIME.RECORD_START;
   ui.pointsFrom.max = ui.pointsTo.max = throughDate;
@@ -604,6 +604,9 @@ export async function startApp(doc = document) {
    * @returns {{ from: string, to: string, label: string }}
    */
   function pointsDates() {
+    if (pointsRange && mapYear !== null) {
+      return { ...pointsRange, label: `Fires detected in ${mapYear}${pointsRange.to === throughDate ? " so far" : ""}` };
+    }
     if (pointsRange) return { ...pointsRange, label: `Fires detected, ${longDate(pointsRange.from)} to ${longDate(pointsRange.to)}` };
     const focus = focusMonth();
     return { ...monthDates(focus, throughDate), label: `Fires detected, ${monthName(focus)}${focus === latest ? " so far" : ""}` };
@@ -676,7 +679,7 @@ export async function startApp(doc = document) {
         verdict: verdict(result.body),
         summary: result.body,
         onLatest: focus === latest ? undefined : backToToday,
-        onYear: (year) => showYearOnMap(year, result.body),
+        onYear: (year) => showYearOnMap(year),
       });
       markMapYear(ui.verdict, mapYearShown());
     } catch (error) {
@@ -701,27 +704,18 @@ export async function startApp(doc = document) {
     if (polygon) loadPoints(loadId, polygon);
   }
 
-  /** The chart year the map's fires belong to, or null for dates picked by hand. */
+  /** The chart year whose fires the map shows, or null for the verdict's month or picked dates. */
   function mapYearShown() {
-    return pointsRange ? mapYear : toYearMonth(focusMonth()).year;
+    return pointsRange ? mapYear : null;
   }
 
   /**
-   * Shows on the map the fires of the verdict's days in another year: 1–13 November 2004 for a
-   * verdict on November 2026 so far, the whole month for a past one.
+   * Shows on the map every fire of one year, 1 January to 31 December, or to the last day with
+   * data for this year.
    * @param {number} year
-   * @param {MonthSummary} summary
    */
-  function showYearOnMap(year, summary) {
-    const { year: focusYear, month } = toYearMonth(focusMonth());
-    if (year === focusYear) {
-      followVerdictDates();
-      return;
-    }
-    const ym = `${year}-${String(month).padStart(2, "0")}`;
-    const whole = monthDates(ym, `${ym}-31`);
-    const to = summary.days_covered ? `${ym}-${String(summary.days_covered).padStart(2, "0")}` : whole.to;
-    pointsRange = { from: whole.from, to: to < whole.to ? to : whole.to };
+  function showYearOnMap(year) {
+    pointsRange = { from: clampDate(`${year}-01-01`), to: clampDate(`${year}-12-31`) };
     mapYear = year;
     const polygon = currentPolygon();
     if (polygon) loadPoints(loadId, polygon);

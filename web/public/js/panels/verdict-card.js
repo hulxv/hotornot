@@ -82,8 +82,8 @@ function figures({ year, value, median, rank, of_years: years, days_covered: day
 
 /**
  * This month's total against the same days of every earlier year, as a bar per year with the
- * chosen year lit. Each year is a button: with `onYear`, choosing one shows that year's fires
- * for the same days on the map. Arrow keys move between years with one tab stop for the chart.
+ * chosen year lit. Each year is a button: with `onYear`, choosing one shows all of that year's
+ * fires on the map. Arrow keys move between years with one tab stop for the chart.
  * @param {MonthSummary & { history?: YearTotal[] }} summary
  * @param {((year: number) => void) | undefined} onYear
  */
@@ -113,7 +113,7 @@ function yearChart({ month, year, days_covered: days, median, history }, onYear)
     {
       class: "years__plot",
       role: "group",
-      "aria-label": `${span}, each year since ${bars[0].year}. Choose a year to show its fires on the map.`,
+      "aria-label": `${span}, each year since ${bars[0].year}. Choose a year to show all its fires on the map.`,
       onkeydown: (event) => moveFocus(/** @type {KeyboardEvent} */ (event), columns),
     },
     ...columns,
@@ -132,7 +132,7 @@ function yearChart({ month, year, days_covered: days, median, history }, onYear)
     ),
     plot,
     h("div", { class: "years__axis", "aria-hidden": "true" }, h("span", { text: String(bars[0].year) }), h("span", { text: String(bars.at(-1).year) })),
-    onYear ? h("p", { class: "years__hint", text: "Click a year to see its fires on the map." }) : null,
+    onYear ? h("p", { class: "years__hint", text: "Click a year to see all its fires on the map." }) : null,
   );
 }
 

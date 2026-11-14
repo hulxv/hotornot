@@ -54,34 +54,51 @@ function addPoint(columns, row) {
 }
 
 /**
- * Collects the in-series hotspots dated `from` to `to`. Every one adds to `total` and `counted`;
- * only every `stride`-th is kept, so a long range stays within the cap without holding the rest.
+ * Keeps every other kept point, in place.
+ * @param {PointColumns} columns
+ */
+function halve(columns) {
+  const kept = columns.date.length;
+  let to = 0;
+  for (let from = 0; from < kept; from += 2, to += 1) {
+    columns.points[2 * to] = columns.points[2 * from];
+    columns.points[2 * to + 1] = columns.points[2 * from + 1];
+    for (const key of /** @type {const} */ (["date", "time", "satellite", "frp", "weight", "night"])) columns[key][to] = columns[key][from];
+  }
+  columns.points.length = 2 * to;
+  for (const key of /** @type {const} */ (["date", "time", "satellite", "frp", "weight", "night"])) columns[key].length = to;
+}
+
+/**
+ * Collects the in-series hotspots dated `from` to `to`. Every one adds to `total` and `counted`.
+ * All are kept while they fit under `max`; past it, every other kept one is dropped and only
+ * every 2nd, then 4th, ... hotspot is kept from then on, so the map always shows an even spread
+ * of between max/2 and max dots without the rest ever being held.
  * @param {Iterable<TileRow> | AsyncIterable<TileRow>} rows
  * @param {string} from YYYY-MM-DD
  * @param {string} to YYYY-MM-DD
- * @param {number} stride
+ * @param {number} max
  * @returns {Promise<PointSet>}
  */
-export async function collectPoints(rows, from, to, stride) {
+export async function collectPoints(rows, from, to, max) {
   const columns = emptyColumns();
   let total = 0;
   let counted = 0;
+  let stride = 1;
   for await (const row of rows) {
     if (!row.in_series || row.acq_date < from || row.acq_date > to) continue;
-    if (total % stride === 0) addPoint(columns, row);
+    if (total % stride === 0) {
+      addPoint(columns, row);
+      if (columns.date.length > max) {
+        halve(columns);
+        stride *= 2;
+      }
+    }
     total += 1;
     counted += row.weight ?? 0;
   }
   return { columns, total, counted: round(counted, 1) };
 }
-
-/**
- * Every k-th hotspot keeps the map under `max` dots. `expected` is an upper bound on the count
- * (every hotspot of the range's months, in series or not), known before reading the tiles.
- * @param {number} expected
- * @param {number} max
- */
-export const strideFor = (expected, max) => Math.max(1, Math.ceil(expected / max));
 
 /**
  * @param {string} from
@@ -108,7 +125,7 @@ export async function handlePoints(request, { source, maxPoints = MAX_POINTS } =
     if (!serving) {
       const region = resolveMockRegion(aoi);
       if (!region.ok) return region.response;
-      const set = await collectPoints(mocks.hotspotsNile, from, to, strideFor(mocks.hotspotsNile.length, maxPoints));
+      const set = await collectPoints(mocks.hotspotsNile, from, to, maxPoints);
       return Response.json(pointsBody(from, to, set), { headers: MOCK_HEADERS });
     }
     const resolved = resolveAoi(serving, aoi);
@@ -118,9 +135,8 @@ export async function handlePoints(request, { source, maxPoints = MAX_POINTS } =
     const key = calendarCacheKey(serving.version, regionId, cellIds, { start: from, end: to, series: `points/${maxPoints}` });
     let set = /** @type {PointSet | undefined} */ (pointsCache.get(key));
     if (!set) {
-      const expected = serving.sumCells(regionId, cellIds, ymStart, ymEnd).reduce((sum, month) => sum + month.points, 0);
       const rows = serving.tileRows({ regionId, tileIds: new Set(cellIds.map(tileOf)), cellIds, ymStart, ymEnd });
-      set = await collectPoints(rows, from, to, strideFor(expected, maxPoints));
+      set = await collectPoints(rows, from, to, maxPoints);
       pointsCache.set(key, set);
     }
     return Response.json(pointsBody(from, to, set));

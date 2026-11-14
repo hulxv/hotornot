@@ -7,7 +7,7 @@ import { POST as postCalendar } from "../api/calendar.js";
 import { POST as postExport } from "../api/export/hotspots.js";
 import { POST as postPoints } from "../api/points.js";
 import { DataSource, resetDataSource } from "../lib/data/source.js";
-import { collectPoints, handlePoints, strideFor } from "../lib/server/points.js";
+import { collectPoints, handlePoints } from "../lib/server/points.js";
 import { boxToPolygon } from "../public/shared/aoi.js";
 import { HOTSPOT_EXPORT_COLUMNS, SATELLITES, checkApiError } from "../public/shared/contracts.js";
 import { fixtureDir } from "./fixtures/fixture.js";
@@ -147,25 +147,39 @@ describe("POST /api/points", () => {
   });
 });
 
-describe("collectPoints and strideFor", () => {
-  const row = (date, inSeries, weight) => ({
-    in_series: inSeries, acq_date: date, acq_utc: `${date}T10:05Z`, lon: 31, lat: 30, satellite: "NOAA-20", frp_mw: 1.25, weight, daynight: "D",
+describe("collectPoints", () => {
+  const row = (date, inSeries, weight, minute = 5) => ({
+    in_series: inSeries,
+    acq_date: date,
+    acq_utc: `${date}T10:${String(minute).padStart(2, "0")}Z`,
+    lon: 31,
+    lat: 30,
+    satellite: "NOAA-20",
+    frp_mw: 1.25,
+    weight,
+    daynight: "D",
   });
 
-  it("counts every hotspot in the range, keeps every k-th, and skips the rest of the dates", async () => {
-    const rows = [row("2026-10-31", true, 1), ...Array.from({ length: 10 }, (_, i) => row("2026-11-01", true, 0.5)), row("2026-11-02", false, 1), row("2026-11-14", true, 1)];
-    const set = await collectPoints(rows, "2026-11-01", "2026-11-13", 3);
+  it("counts every hotspot in the range and skips other dates and the ones out of the series", async () => {
+    const rows = [row("2026-10-31", true, 1), ...Array.from({ length: 10 }, () => row("2026-11-01", true, 0.5)), row("2026-11-02", false, 1), row("2026-11-14", true, 1)];
+    const set = await collectPoints(rows, "2026-11-01", "2026-11-13", 100);
     assert.equal(set.total, 10);
     assert.equal(set.counted, 5);
-    assert.equal(set.columns.date.length, 4);
-    assert.deepEqual(set.columns.date, [20261101, 20261101, 20261101, 20261101]);
+    assert.equal(set.columns.date.length, 10, "everything fits, so everything is kept");
     assert.deepEqual([set.columns.time[0], set.columns.frp[0], set.columns.satellite[0], set.columns.night[0]], [1005, 1.3, 3, 0]);
   });
 
-  it("strides just enough to stay under the cap", () => {
-    assert.equal(strideFor(0, 60000), 1);
-    assert.equal(strideFor(60000, 60000), 1);
-    assert.equal(strideFor(60001, 60000), 2);
-    assert.equal(strideFor(272486, 60000), 5);
+  it("thins to an even spread between half the cap and the cap", async () => {
+    const rows = Array.from({ length: 100 }, (_, i) => row("2026-11-01", true, 1, i % 60));
+    for (const max of [10, 33, 99, 100]) {
+      const set = await collectPoints(rows, "2026-11-01", "2026-11-01", max);
+      const kept = set.columns.date.length;
+      assert.equal(set.total, 100);
+      assert.ok(kept <= max && kept > max / 2, `max ${max}: kept ${kept}`);
+      for (const key of ["time", "satellite", "frp", "weight", "night"]) assert.equal(set.columns[key].length, kept, key);
+      assert.equal(set.columns.points.length, 2 * kept);
+    }
+    const tenth = await collectPoints(rows, "2026-11-01", "2026-11-01", 10);
+    assert.deepEqual(tenth.columns.time, [1000, 1016, 1032, 1048, 1004, 1020, 1036]);
   });
 });
