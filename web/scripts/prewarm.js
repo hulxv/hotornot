@@ -5,7 +5,7 @@
 //
 //   node scripts/prewarm.js https://hotornot.example.app [--rounds=2]
 import { pathToFileURL } from "node:url";
-import { calendarBody } from "../public/js/client-api.js";
+import { calendarBody, lastRecordDate, monthDates } from "../public/js/client-api.js";
 import { DEFAULT_STATE, EXAMPLES, areaPolygon } from "../public/js/url-state.js";
 
 /**
@@ -14,8 +14,11 @@ import { DEFAULT_STATE, EXAMPLES, areaPolygon } from "../public/js/url-state.js"
  * @typedef {Call & { status: number, ms: number, cache: string | null, bytes: number }} Result
  */
 
-/** @param {import("../public/shared/contracts.js").Aoi} aoi @param {string} month YYYY-MM */
-const pointsBody = (aoi, month) => ({ aoi, start: month, end: month, series: "harmonized" });
+/**
+ * The map's request for a month's fire dots, with the dates the page sends.
+ * @param {import("../public/shared/contracts.js").Aoi} aoi @param {string} month YYYY-MM @param {string} through
+ */
+const pointsBody = (aoi, month, through) => ({ aoi, ...monthDates(month, through) });
 
 /**
  * The calls the page makes for each region preset in its default view and in the raw view, the
@@ -26,6 +29,7 @@ const pointsBody = (aoi, month) => ({ aoi, start: month, end: month, series: "ha
 export function prewarmCalls(metadata) {
   /** @type {Call[]} */
   const calls = [{ name: "metadata", path: "/api/metadata" }];
+  const through = lastRecordDate(metadata);
   for (const region of metadata.regions) {
     const aoi = /** @type {import("../public/shared/contracts.js").Aoi} */ (areaPolygon({ kind: "preset" }, region));
     for (const series of /** @type {const} */ (["harmonized", "raw"])) {
@@ -33,15 +37,15 @@ export function prewarmCalls(metadata) {
       calls.push({ name: `${region.id} calendar ${series}`, path: "/api/calendar", body: calendarBody(aoi, state, metadata) });
     }
     calls.push({ name: `${region.id} current month`, path: "/api/current-month", body: { aoi } });
-    const latest = region.coverage.nrt_until.slice(0, 7);
-    calls.push({ name: `${region.id} points ${latest}`, path: "/api/points", body: pointsBody(aoi, latest) });
+    const latest = through.slice(0, 7);
+    calls.push({ name: `${region.id} points ${latest}`, path: "/api/points", body: pointsBody(aoi, latest, through) });
   }
   // The examples' months are the slowest point reads (Black Summer is about 4 s cold).
   for (const { state } of EXAMPLES) {
     const region = metadata.regions.find((candidate) => candidate.id === state.region);
     if (!region || !state.end) continue;
     const aoi = /** @type {import("../public/shared/contracts.js").Aoi} */ (areaPolygon({ kind: "preset" }, region));
-    calls.push({ name: `${region.id} points ${state.end}`, path: "/api/points", body: pointsBody(aoi, state.end) });
+    calls.push({ name: `${region.id} points ${state.end}`, path: "/api/points", body: pointsBody(aoi, state.end, through) });
   }
   calls.push({ name: "method", path: "/api/method" });
   return calls;

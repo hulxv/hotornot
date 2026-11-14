@@ -2,7 +2,19 @@ import { createCalendar } from "./calendar/index.js";
 import { buildOption } from "./calendar/option.js";
 import { calendarTable, calendarTableHtml } from "./calendar/table.js";
 import { MONTH_LONG, buildCalendar } from "./calendar/transform.js";
-import { ApiError, RECORD_START_MONTH, calendarBody, getMetadata, lastRecordMonth, postCalendar, postCurrentMonth, postPoints, resolveRange } from "./client-api.js";
+import {
+  ApiError,
+  RECORD_START_MONTH,
+  calendarBody,
+  getMetadata,
+  lastRecordDate,
+  lastRecordMonth,
+  monthDates,
+  postCalendar,
+  postCurrentMonth,
+  postPoints,
+  resolveRange,
+} from "./client-api.js";
 import { createMap } from "./map/map.js";
 import { areaLabel, renderArea, snapForMap } from "./panels/area.js";
 import { h } from "./panels/dom.js";
@@ -191,6 +203,9 @@ export async function startApp(doc = document) {
     table: $("calendar-table"),
     attribution: $("attribution"),
     dataInfo: $("data-info"),
+    pointsFrom: /** @type {HTMLInputElement} */ ($("points-from")),
+    pointsTo: /** @type {HTMLInputElement} */ ($("points-to")),
+    pointsReset: /** @type {HTMLButtonElement} */ ($("points-reset")),
   };
 
   /** @type {Metadata} */
@@ -227,9 +242,16 @@ export async function startApp(doc = document) {
 
   ui.attribution.textContent = metadata.attribution;
   const method = metadata.method;
-  const through = metadata.regions.map((region) => region.coverage.nrt_until).sort().at(-1);
+  const throughDate = lastRecordDate(metadata);
+  /** @type {{ from: string, to: string } | null} null follows the verdict's month */
+  let pointsRange = null;
+  ui.pointsFrom.min = ui.pointsTo.min = TIME.RECORD_START;
+  ui.pointsFrom.max = ui.pointsTo.max = throughDate;
+  ui.pointsFrom.addEventListener("change", () => changePointsRange("from"));
+  ui.pointsTo.addEventListener("change", () => changePointsRange("to"));
+  ui.pointsReset.addEventListener("click", () => followVerdictDates());
   ui.dataInfo.textContent =
-    `NASA FIRMS fire detections through ${longDate(through)}. MODIS and VIIRS are counted on one scale ` +
+    `NASA FIRMS fire detections through ${longDate(throughDate)}. MODIS and VIIRS are counted on one scale ` +
     `(${method.weight_method === "model_v1" ? "detection model" : "ratio method"}, checked on years it never saw).`;
 
   buildPresets();
@@ -245,6 +267,8 @@ export async function startApp(doc = document) {
       onRegionSelect: (id) => selectPreset(id),
     });
     ui.drawArea.disabled = false;
+    ui.pointsFrom.disabled = false;
+    ui.pointsTo.disabled = false;
     ui.typeCoordinates.disabled = false;
   } catch (error) {
     console.error(error);
@@ -437,6 +461,7 @@ export async function startApp(doc = document) {
 
   /** @param {AppState} next a whole state: a Try link or a story step */
   function applyState(next) {
+    pointsRange = null;
     setState({ ...next });
     showArea();
   }
@@ -572,14 +597,26 @@ export async function startApp(doc = document) {
   }
 
   /**
-   * The fires counted in the verdict's month, on the map. They load after the calendar and the
+   * The days the map's fire dots cover: the verdict's month by default, or the visitor's dates.
+   * @returns {{ from: string, to: string, label: string }}
+   */
+  function pointsDates() {
+    if (pointsRange) return { ...pointsRange, label: `Fires detected, ${longDate(pointsRange.from)} to ${longDate(pointsRange.to)}` };
+    const focus = focusMonth();
+    return { ...monthDates(focus, throughDate), label: `Fires detected, ${monthName(focus)}${focus === latest ? " so far" : ""}` };
+  }
+
+  /**
+   * The fires counted in the chosen days, on the map. They load after the calendar and the
    * verdict and never hold them up; a failure only leaves the map without dots.
    * @param {number} id @param {Aoi} polygon
    */
   async function loadPoints(id, polygon) {
-    const focus = focusMonth();
-    const label = `Fires detected, ${monthName(focus)}${focus === latest ? " so far" : ""}`;
-    const request = { aoi: polygon, start: focus, end: focus, series: /** @type {const} */ ("harmonized") };
+    const { from, to, label } = pointsDates();
+    ui.pointsFrom.value = from;
+    ui.pointsTo.value = to;
+    ui.pointsReset.hidden = pointsRange === null;
+    const request = { aoi: polygon, from, to };
     map.setPoints(null, { label: `${label}: loading…` }).catch(() => {});
     try {
       const result = await pointSets.get(JSON.stringify(request), () => postPoints(request));
@@ -639,6 +676,34 @@ export async function startApp(doc = document) {
     } catch (error) {
       if (id === loadId) renderVerdict(ui.verdict, { status: "empty", area: currentAreaLabel(), text: describeError(asApiError(error)).title });
     }
+  }
+
+  /** @param {"from" | "to"} changed */
+  function changePointsRange(changed) {
+    let from = ui.pointsFrom.value;
+    let to = ui.pointsTo.value;
+    if (!from || !to) return;
+    from = clampDate(from);
+    to = clampDate(to);
+    if (from > to) {
+      if (changed === "from") to = from;
+      else from = to;
+    }
+    pointsRange = { from, to };
+    const polygon = currentPolygon();
+    if (polygon) loadPoints(loadId, polygon);
+  }
+
+  function followVerdictDates() {
+    pointsRange = null;
+    const polygon = currentPolygon();
+    if (polygon) loadPoints(loadId, polygon);
+  }
+
+  /** @param {string} date YYYY-MM-DD */
+  function clampDate(date) {
+    if (date < TIME.RECORD_START) return TIME.RECORD_START;
+    return date > throughDate ? throughDate : date;
   }
 
   function backToToday() {

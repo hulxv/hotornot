@@ -170,6 +170,44 @@ export function validateCalendarRequest(body) {
 
 export const validateExportRequest = validateCalendarRequest;
 
+/** A real calendar date written YYYY-MM-DD. */
+const isIsoDate = (value) =>
+  typeof value === "string" && /^\d{4}-\d{2}-\d{2}$/.test(value) && new Date(`${value}T00:00:00Z`).toISOString().slice(0, 10) === value;
+
+/** @param {string} yearMonth YYYY-MM */
+const lastDayOf = (yearMonth) => {
+  const [year, month] = yearMonth.split("-").map(Number);
+  return `${yearMonth}-${String(new Date(Date.UTC(year, month, 0)).getUTCDate()).padStart(2, "0")}`;
+};
+
+/**
+ * `POST /api/points`: an aoi and either `from` and `to` dates (YYYY-MM-DD) or the calendar's
+ * `start` and `end` months, which mean their first and last days.
+ * @returns {{ ok: true, value: { aoi: Aoi, from: string, to: string } } | Invalid}
+ */
+export function validatePointsRequest(body) {
+  if (!isObject(body)) return invalid("invalid_aoi", "the body must be a JSON object with an aoi polygon");
+  const aoi = validateAoiShape(body.aoi);
+  if (!aoi.ok) return aoi;
+  let from;
+  let to;
+  if (body.from !== undefined || body.to !== undefined) {
+    for (const key of ["from", "to"]) {
+      if (!isIsoDate(body[key])) return invalid("bad_range", `${key} must be a date written YYYY-MM-DD`);
+    }
+    ({ from, to } = body);
+  } else {
+    for (const key of ["start", "end"]) {
+      if (!isYearMonth(body[key])) return invalid("bad_range", `${key} must be a month written YYYY-MM, or give from and to dates`);
+    }
+    from = `${body.start}-01`;
+    to = lastDayOf(body.end);
+  }
+  if (from > to) return invalid("bad_range", "from must not be after to");
+  if (from < "2000-01-01" || to > "2099-12-31") return invalid("bad_range", "dates must lie between 2000 and 2099");
+  return { ok: true, value: { aoi: aoi.value, from, to } };
+}
+
 /**
  * `start`, `end` and `series` are accepted and ignored.
  * @returns {{ ok: true, value: CurrentMonthRequest } | Invalid}

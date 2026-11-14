@@ -7,7 +7,7 @@ import { POST as postCalendar } from "../api/calendar.js";
 import { POST as postExport } from "../api/export/hotspots.js";
 import { POST as postPoints } from "../api/points.js";
 import { DataSource, resetDataSource } from "../lib/data/source.js";
-import { handlePoints, thinIndices, thinPoints } from "../lib/server/points.js";
+import { collectPoints, handlePoints, strideFor } from "../lib/server/points.js";
 import { boxToPolygon } from "../public/shared/aoi.js";
 import { HOTSPOT_EXPORT_COLUMNS, SATELLITES, checkApiError } from "../public/shared/contracts.js";
 import { fixtureDir } from "./fixtures/fixture.js";
@@ -70,8 +70,9 @@ describe("POST /api/points", () => {
         assert.equal(response.status, 200);
         assert.equal(response.headers.get("x-hotornot-data"), null);
         const answer = await response.json();
-        assert.deepEqual(Object.keys(answer).sort(), ["counted", "date", "frp", "month_end", "month_start", "night", "points", "satellite", "satellites", "time", "total", "weight"]);
-        assert.deepEqual([answer.month_start, answer.month_end], [start, end]);
+        assert.deepEqual(Object.keys(answer).sort(), ["counted", "date", "from", "frp", "night", "points", "satellite", "satellites", "time", "to", "total", "weight"]);
+        assert.equal(answer.from, `${start}-01`);
+        assert.equal(answer.to.slice(0, 7), end);
         assert.deepEqual(answer.satellites, SATELLITES);
         for (const key of ["date", "time", "satellite", "frp", "weight", "night"]) assert.equal(answer[key].length, answer.total, key);
         const expected = await expectedPoints(body(aoi, start, end));
@@ -93,11 +94,38 @@ describe("POST /api/points", () => {
     const source = new DataSource({ baseUrl: fixtureDir() });
     const capped = await (await handlePoints(post(request), { source, maxPoints: 20 })).json();
     assert.equal(capped.total, full.total);
-    assert.equal(capped.points.length, 40);
-    for (const key of ["date", "time", "satellite", "frp", "weight", "night"]) assert.equal(capped[key].length, 20, key);
+    assert.equal(capped.counted, full.counted);
+    const kept = capped.date.length;
+    assert.ok(kept > 0 && kept <= 20, `kept ${kept}`);
+    assert.equal(capped.points.length, kept * 2);
+    for (const key of ["time", "satellite", "frp", "weight", "night"]) assert.equal(capped[key].length, kept, key);
     const all = new Set(rowsOf(full).map((row) => row.join(",")));
     for (const row of rowsOf(capped)) assert.ok(all.has(row.join(",")), "a thinned point keeps its own details");
     source.close();
+  });
+
+  it("takes any date range and keeps only the hotspots dated inside it", async () => {
+    const all = await (await postPoints(post(body(NILE_BBOX_AOI, "2000-11", "2026-11")))).json();
+    assert.equal(all.date.length, all.total, "the fixture is small enough not to be thinned");
+    const days = [...new Set(all.date)].sort((a, b) => a - b);
+    assert.ok(days.length > 4, `the fixture has ${days.length} fire days`);
+    const [first, last] = [days[Math.floor(days.length / 4)], days[Math.floor((3 * days.length) / 4)]];
+    const iso = (yyyymmdd) => `${String(yyyymmdd).slice(0, 4)}-${String(yyyymmdd).slice(4, 6)}-${String(yyyymmdd).slice(6)}`;
+    const [from, to] = [iso(first), iso(last)];
+    const range = await (await postPoints(post({ aoi: NILE_BBOX_AOI, from, to }))).json();
+    assert.deepEqual([range.from, range.to], [from, to]);
+    const inside = rowsOf(all).filter((row) => row[2] >= first && row[2] <= last);
+    assert.ok(inside.length > 0 && inside.length < all.total);
+    assert.equal(range.total, inside.length);
+    assert.deepEqual(sorted(rowsOf(range)), sorted(inside));
+  });
+
+  it("refuses an impossible or reversed date range", async () => {
+    for (const [from, to] of [["2021-02-29", "2021-03-01"], ["2020-03-01", "2020-02-01"], ["2020-1-1", "2020-02-01"]]) {
+      const response = await postPoints(post({ aoi: NILE_AOI, from, to }));
+      assert.equal(response.status, 400, `${from}..${to}`);
+      assert.equal((await response.json()).error.code, "bad_range");
+    }
   });
 
   it("refuses an area outside every region like the calendar does", async () => {
@@ -119,13 +147,25 @@ describe("POST /api/points", () => {
   });
 });
 
-describe("thinIndices and thinPoints", () => {
-  it("keeps everything under the cap and evenly spaced points over it, with their details", () => {
-    assert.deepEqual(thinIndices(4, 10), [0, 1, 2, 3]);
-    assert.deepEqual(thinIndices(10, 5), [0, 2, 4, 6, 8]);
-    assert.deepEqual(thinIndices(10, 3), [0, 3, 6]);
-    const columns = { points: [0, 0, 1, 1, 2, 2, 3, 3], date: [1, 2, 3, 4], time: [5, 6, 7, 8], satellite: [0, 1, 2, 3], frp: [1, 2, 3, 4], weight: [0.1, null, 0.3, 0.4], night: [0, 1, 0, 1] };
-    assert.equal(thinPoints(columns, 4), columns);
-    assert.deepEqual(thinPoints(columns, 2), { points: [0, 0, 2, 2], date: [1, 3], time: [5, 7], satellite: [0, 2], frp: [1, 3], weight: [0.1, 0.3], night: [0, 0] });
+describe("collectPoints and strideFor", () => {
+  const row = (date, inSeries, weight) => ({
+    in_series: inSeries, acq_date: date, acq_utc: `${date}T10:05Z`, lon: 31, lat: 30, satellite: "NOAA-20", frp_mw: 1.25, weight, daynight: "D",
+  });
+
+  it("counts every hotspot in the range, keeps every k-th, and skips the rest of the dates", async () => {
+    const rows = [row("2026-10-31", true, 1), ...Array.from({ length: 10 }, (_, i) => row("2026-11-01", true, 0.5)), row("2026-11-02", false, 1), row("2026-11-14", true, 1)];
+    const set = await collectPoints(rows, "2026-11-01", "2026-11-13", 3);
+    assert.equal(set.total, 10);
+    assert.equal(set.counted, 5);
+    assert.equal(set.columns.date.length, 4);
+    assert.deepEqual(set.columns.date, [20261101, 20261101, 20261101, 20261101]);
+    assert.deepEqual([set.columns.time[0], set.columns.frp[0], set.columns.satellite[0], set.columns.night[0]], [1005, 1.3, 3, 0]);
+  });
+
+  it("strides just enough to stay under the cap", () => {
+    assert.equal(strideFor(0, 60000), 1);
+    assert.equal(strideFor(60000, 60000), 1);
+    assert.equal(strideFor(60001, 60000), 2);
+    assert.equal(strideFor(272486, 60000), 5);
   });
 });

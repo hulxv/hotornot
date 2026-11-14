@@ -124,6 +124,21 @@ export async function postCurrentMonth(aoi) {
 }
 
 /**
+ * The days of a month the data covers: its first day to its last, or to `through` when the
+ * month is still running.
+ * @param {string} month YYYY-MM
+ * @param {string} through YYYY-MM-DD, the last day with data
+ */
+export function monthDates(month, through) {
+  const [year, number] = month.split("-").map(Number);
+  const last = `${month}-${String(new Date(Date.UTC(year, number, 0)).getUTCDate()).padStart(2, "0")}`;
+  return { from: `${month}-01`, to: through < last ? through : last };
+}
+
+/** The last day with data in any region, YYYY-MM-DD. @param {Metadata} metadata */
+export const lastRecordDate = (metadata) => metadata.regions.map((region) => region.coverage.nrt_until).sort().at(-1);
+
+/**
  * Where the fires counted in the series were, for the map.
  * @param {CalendarRequest} body
  * @returns {Promise<{ body: import("./map/point-info.js").PointsData & { month_start: string, month_end: string, total: number }, mock: boolean }>}

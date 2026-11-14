@@ -1,5 +1,5 @@
 import { tileOf } from "../../public/shared/grid.js";
-import { SATELLITES, yearMonthToYm } from "../../public/shared/contracts.js";
+import { SATELLITES, validatePointsRequest, yearMonthToYm } from "../../public/shared/contracts.js";
 import { mocks, resolveMockRegion } from "../../mocks/index.js";
 import {
   LruCache,
@@ -8,8 +8,8 @@ import {
   calendarCacheKey,
   openPublished,
   resolveAoi,
-  validateCalendarBody,
   withDataErrors,
+  withSimpleAoi,
 } from "./calendar.js";
 import { readBody } from "./http.js";
 
@@ -20,15 +20,18 @@ import { readBody } from "./http.js";
  *   points: number[], date: number[], time: number[], satellite: number[],
  *   frp: number[], weight: (number | null)[], night: number[],
  * }} PointColumns `points` is flat [lon, lat, ...]; the others hold one value per point
- * @typedef {PointColumns & { month_start: string, month_end: string, total: number, counted: number, satellites: readonly string[] }} PointsBody
+ * @typedef {{ columns: PointColumns, total: number, counted: number }} PointSet
+ * @typedef {PointColumns & { from: string, to: string, total: number, counted: number, satellites: readonly string[] }} PointsBody
  */
 
 // MapLibre draws this many circles smoothly on a laptop; Black Summer's December alone has
 // about 230,000 counted hotspots in south-east Australia.
 export const MAX_POINTS = 60_000;
 
-// One month of a region takes 0.3 to 7 s to read from its tiles, so recent answers are kept.
+// One range of a region takes 0.3 to 7 s to read from its tiles, so recent answers are kept.
 const pointsCache = new LruCache(16);
+
+const validatePointsBody = withSimpleAoi(validatePointsRequest);
 
 const round = (value, decimals) => Math.round(value * 10 ** decimals) / 10 ** decimals;
 
@@ -51,90 +54,75 @@ function addPoint(columns, row) {
 }
 
 /**
- * Indices of at most `max` of `count` points, every k-th one in order when there are more, so a
- * thinned map keeps the same spread.
- * @param {number} count
- * @param {number} max
+ * Collects the in-series hotspots dated `from` to `to`. Every one adds to `total` and `counted`;
+ * only every `stride`-th is kept, so a long range stays within the cap without holding the rest.
+ * @param {Iterable<TileRow> | AsyncIterable<TileRow>} rows
+ * @param {string} from YYYY-MM-DD
+ * @param {string} to YYYY-MM-DD
+ * @param {number} stride
+ * @returns {Promise<PointSet>}
  */
-export function thinIndices(count, max) {
-  if (count <= max) return Array.from({ length: count }, (_, i) => i);
-  const step = count / max;
-  return Array.from({ length: max }, (_, i) => Math.floor(i * step));
-}
-
-/**
- * @param {PointColumns} columns
- * @param {number} max
- * @returns {PointColumns}
- */
-export function thinPoints(columns, max) {
-  const count = columns.date.length;
-  if (count <= max) return columns;
-  const keep = thinIndices(count, max);
-  const out = emptyColumns();
-  for (const i of keep) {
-    out.points.push(columns.points[2 * i], columns.points[2 * i + 1]);
-    for (const key of /** @type {const} */ (["date", "time", "satellite", "frp", "weight", "night"])) out[key].push(columns[key][i]);
+export async function collectPoints(rows, from, to, stride) {
+  const columns = emptyColumns();
+  let total = 0;
+  let counted = 0;
+  for await (const row of rows) {
+    if (!row.in_series || row.acq_date < from || row.acq_date > to) continue;
+    if (total % stride === 0) addPoint(columns, row);
+    total += 1;
+    counted += row.weight ?? 0;
   }
-  return out;
+  return { columns, total, counted: round(counted, 1) };
 }
 
 /**
- * @param {string} start
- * @param {string} end
- * @param {PointColumns} columns every point, before thinning
+ * Every k-th hotspot keeps the map under `max` dots. `expected` is an upper bound on the count
+ * (every hotspot of the range's months, in series or not), known before reading the tiles.
+ * @param {number} expected
  * @param {number} max
+ */
+export const strideFor = (expected, max) => Math.max(1, Math.ceil(expected / max));
+
+/**
+ * @param {string} from
+ * @param {string} to
+ * @param {PointSet} set
  * @returns {PointsBody}
  */
-const pointsBody = (start, end, columns, max) => ({
-  month_start: start,
-  month_end: end,
-  total: columns.date.length,
-  counted: round(columns.weight.reduce((sum, weight) => sum + (weight ?? 0), 0), 1),
-  satellites: SATELLITES,
-  ...thinPoints(columns, max),
-});
+const pointsBody = (from, to, { columns, total, counted }) => ({ from, to, total, counted, satellites: SATELLITES, ...columns });
 
 /**
  * `POST /api/points`: where and when the hotspots counted in the harmonized series (`in_series`)
- * were, for the calendar body's area and months, so the map can draw them and describe each.
+ * were, for an area and a date range, so the map can draw them and describe each.
  * @param {Request} request
  * @param {{ source?: DataSource, maxPoints?: number }} [options]
  */
 export async function handlePoints(request, { source, maxPoints = MAX_POINTS } = {}) {
-  const body = await readBody(request, validateCalendarBody);
+  const body = await readBody(request, validatePointsBody);
   if (!body.ok) return body.response;
-  const { aoi, start, end } = body.value;
+  const { aoi, from, to } = body.value;
+  const ymStart = yearMonthToYm(from.slice(0, 7));
+  const ymEnd = yearMonthToYm(to.slice(0, 7));
   return withDataErrors(async () => {
     const serving = await openPublished(source);
     if (!serving) {
       const region = resolveMockRegion(aoi);
       if (!region.ok) return region.response;
-      const columns = emptyColumns();
-      for (const row of mocks.hotspotsNile) {
-        const month = row.acq_date.slice(0, 7);
-        if (row.in_series && month >= start && month <= end) addPoint(columns, row);
-      }
-      return Response.json(pointsBody(start, end, columns, maxPoints), { headers: MOCK_HEADERS });
+      const set = await collectPoints(mocks.hotspotsNile, from, to, strideFor(mocks.hotspotsNile.length, maxPoints));
+      return Response.json(pointsBody(from, to, set), { headers: MOCK_HEADERS });
     }
     const resolved = resolveAoi(serving, aoi);
     if (!resolved.ok) return aoiErrorResponse(resolved);
     const regionId = resolved.region.id;
     const cellIds = resolved.coveredCells;
-    const key = calendarCacheKey(serving.version, regionId, cellIds, { start, end, series: "points" });
-    let columns = /** @type {PointColumns | undefined} */ (pointsCache.get(key));
-    if (!columns) {
-      columns = emptyColumns();
-      const rows = serving.tileRows({
-        regionId,
-        tileIds: new Set(cellIds.map(tileOf)),
-        cellIds,
-        ymStart: yearMonthToYm(start),
-        ymEnd: yearMonthToYm(end),
-      });
-      for await (const row of rows) if (row.in_series) addPoint(columns, row);
-      pointsCache.set(key, columns);
+    const key = calendarCacheKey(serving.version, regionId, cellIds, { start: from, end: to, series: `points/${maxPoints}` });
+    let set = /** @type {PointSet | undefined} */ (pointsCache.get(key));
+    if (!set) {
+      const expected = serving.sumCells(regionId, cellIds, ymStart, ymEnd).reduce((sum, month) => sum + month.points, 0);
+      const rows = serving.tileRows({ regionId, tileIds: new Set(cellIds.map(tileOf)), cellIds, ymStart, ymEnd });
+      set = await collectPoints(rows, from, to, strideFor(expected, maxPoints));
+      pointsCache.set(key, set);
     }
-    return Response.json(pointsBody(start, end, columns, maxPoints));
+    return Response.json(pointsBody(from, to, set));
   });
 }

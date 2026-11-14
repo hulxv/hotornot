@@ -657,6 +657,42 @@ a:hover {
   }
 }
 
+/* Which days of fires the map draws: the verdict's month unless the visitor picks dates. */
+.map-range {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem 0.875rem;
+  min-width: 0;
+  margin: 0 0 0.75rem;
+  padding: 0;
+  border: 0;
+}
+
+.map-range__legend {
+  float: left;
+  margin-right: 0.25rem;
+  padding: 0;
+  color: var(--muted);
+  font-size: 0.875rem;
+}
+
+.map-range input[type="date"] {
+  min-height: 2.25rem;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--control-border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: var(--fg);
+  font: inherit;
+  font-size: 0.875rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.map-range input[type="date"]:disabled {
+  opacity: 0.5;
+}
+
 .map {
   flex: 1 1 auto;
   min-height: clamp(28rem, 72vh, 46rem);

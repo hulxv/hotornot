@@ -114,6 +114,12 @@
 
       <section class="map-section" aria-labelledby="map-heading">
         <h2 class="visually-hidden" id="map-heading">Map</h2>
+        <fieldset class="map-range" id="map-range">
+          <legend class="map-range__legend">Fires on the map</legend>
+          <label class="select">From <input type="date" id="points-from" disabled></label>
+          <label class="select">to <input type="date" id="points-to" disabled></label>
+          <button type="button" class="link-button" id="points-reset" hidden>Back to the verdict's month</button>
+        </fieldset>
         <div class="map" id="map"></div>
       </section>
 
