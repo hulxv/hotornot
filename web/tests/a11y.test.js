@@ -424,7 +424,9 @@ describe("the served pages", () => {
     assert.deepEqual(regions.map((button) => button.getAttribute("aria-pressed")), ["true", "false", "false", "false"]);
     for (const id of ["draw-area", "type-coordinates"]) assert.equal(doc.getElementById(id).disabled, false, id);
     assert.match(doc.getElementById("verdict-heading").textContent.replace(/\s+/g, " ").trim(), /^Hot or not\? Nile Delta, Egypt · November 2026 so far$/);
-    assert.match(doc.getElementById("verdict").textContent, /^Verdict: (HOT|NOT|NORMAL)[\d.,]+ fire detections?, /);
+    assert.match(doc.getElementById("verdict").textContent, /^Verdict: (HOT|NOT|NORMAL)2026 so far[\d.,]+/);
+    assert.deepEqual(doc.querySelectorAll("#verdict .figures dt").map((term) => term.textContent), ["2026 so far", "Usual by now", "Rank"]);
+    assert.ok(doc.querySelectorAll("#verdict .years__col").length >= 4, "the year chart has a button per year");
     assert.deepEqual(doc.querySelectorAll("#examples a").map((link) => link.getAttribute("href")), [
       "/?region=se_australia&view=anomaly&to=2019-12&july=1",
       "/?region=california&to=2020-09",

@@ -123,3 +123,31 @@ describe("verdictMonth", () => {
     assert.equal(verdictMonth("2026-12", "2026-11"), "2026-11");
   });
 });
+
+describe("the verdict's figures", async () => {
+  const { rankText, ratioText, yearBars } = await import("../public/js/panels/verdict-card.js");
+
+  it("names the rank from the busiest end, with words for the ends", () => {
+    assert.equal(rankText(1, 24), "Busiest of 24");
+    assert.equal(rankText(4, 24), "4th busiest of 24");
+    assert.equal(rankText(22, 24), "22nd busiest of 24");
+    assert.equal(rankText(24, 24), "Quietest of 24");
+  });
+
+  it("compares with the usual level as a ratio, or not at all without one", () => {
+    assert.equal(ratioText(463, 282), "1.6× usual");
+    assert.equal(ratioText(0.6, 0.3), "2× usual");
+    assert.equal(ratioText(15.36, 15.4), "1× usual");
+    assert.equal(ratioText(43732, 533), "82× usual");
+    assert.equal(ratioText(10, 40), "0.25× usual");
+    assert.equal(ratioText(5, 0), null);
+    assert.equal(ratioText(5, null), null);
+  });
+
+  it("scales the year bars to the tallest year or the usual level, whichever is higher", () => {
+    const { bars, medianHeight, busiest } = yearBars([{ year: 2003, value: 10 }, { year: 2004, value: 0 }, { year: 2005, value: 0.05 }], 20);
+    assert.deepEqual(bars.map((bar) => bar.height), [50, 0, 2]);
+    assert.equal(medianHeight, 100);
+    assert.deepEqual(busiest, { year: 2003, value: 10 });
+  });
+});

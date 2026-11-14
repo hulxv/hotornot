@@ -20,7 +20,7 @@ import { areaLabel, renderArea, snapForMap } from "./panels/area.js";
 import { h } from "./panels/dom.js";
 import { createExportsPanel } from "./panels/exports.js";
 import { errorMessage } from "./panels/messages.js";
-import { renderVerdict } from "./panels/verdict-card.js";
+import { markMapYear, renderVerdict } from "./panels/verdict-card.js";
 import { createStory } from "./story/story.js";
 import { EXAMPLES, VIEWS, areaFromPolygon, areaPolygon, parseState, serializeState, seriesForView } from "./url-state.js";
 import { verdict, verdictMonth } from "./verdict.js";
@@ -245,6 +245,8 @@ export async function startApp(doc = document) {
   const throughDate = lastRecordDate(metadata);
   /** @type {{ from: string, to: string } | null} null follows the verdict's month */
   let pointsRange = null;
+  /** @type {number | null} the chart year whose days the map shows, while `pointsRange` is set from the chart */
+  let mapYear = null;
   ui.pointsFrom.min = ui.pointsTo.min = TIME.RECORD_START;
   ui.pointsFrom.max = ui.pointsTo.max = throughDate;
   ui.pointsFrom.addEventListener("change", () => changePointsRange("from"));
@@ -462,6 +464,7 @@ export async function startApp(doc = document) {
   /** @param {AppState} next a whole state: a Try link or a story step */
   function applyState(next) {
     pointsRange = null;
+    mapYear = null;
     setState({ ...next });
     showArea();
   }
@@ -616,6 +619,7 @@ export async function startApp(doc = document) {
     ui.pointsFrom.value = from;
     ui.pointsTo.value = to;
     ui.pointsReset.hidden = pointsRange === null;
+    markMapYear(ui.verdict, mapYearShown());
     const request = { aoi: polygon, from, to };
     map.setPoints(null, { label: `${label}: loading…` }).catch(() => {});
     try {
@@ -672,7 +676,9 @@ export async function startApp(doc = document) {
         verdict: verdict(result.body),
         summary: result.body,
         onLatest: focus === latest ? undefined : backToToday,
+        onYear: (year) => showYearOnMap(year, result.body),
       });
+      markMapYear(ui.verdict, mapYearShown());
     } catch (error) {
       if (id === loadId) renderVerdict(ui.verdict, { status: "empty", area: currentAreaLabel(), text: describeError(asApiError(error)).title });
     }
@@ -690,12 +696,40 @@ export async function startApp(doc = document) {
       else from = to;
     }
     pointsRange = { from, to };
+    mapYear = null;
+    const polygon = currentPolygon();
+    if (polygon) loadPoints(loadId, polygon);
+  }
+
+  /** The chart year the map's fires belong to, or null for dates picked by hand. */
+  function mapYearShown() {
+    return pointsRange ? mapYear : toYearMonth(focusMonth()).year;
+  }
+
+  /**
+   * Shows on the map the fires of the verdict's days in another year: 1–13 November 2004 for a
+   * verdict on November 2026 so far, the whole month for a past one.
+   * @param {number} year
+   * @param {MonthSummary} summary
+   */
+  function showYearOnMap(year, summary) {
+    const { year: focusYear, month } = toYearMonth(focusMonth());
+    if (year === focusYear) {
+      followVerdictDates();
+      return;
+    }
+    const ym = `${year}-${String(month).padStart(2, "0")}`;
+    const whole = monthDates(ym, `${ym}-31`);
+    const to = summary.days_covered ? `${ym}-${String(summary.days_covered).padStart(2, "0")}` : whole.to;
+    pointsRange = { from: whole.from, to: to < whole.to ? to : whole.to };
+    mapYear = year;
     const polygon = currentPolygon();
     if (polygon) loadPoints(loadId, polygon);
   }
 
   function followVerdictDates() {
     pointsRange = null;
+    mapYear = null;
     const polygon = currentPolygon();
     if (polygon) loadPoints(loadId, polygon);
   }

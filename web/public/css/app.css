@@ -501,6 +501,63 @@ a:hover {
   line-height: 1.45;
 }
 
+/* The numbers behind the word: label, bar on a shared scale, value. */
+.figures {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content;
+  align-items: center;
+  gap: 0.5rem 0.75rem;
+  margin: 0 0 0.75rem;
+}
+
+.figures dt {
+  color: var(--muted);
+  font-size: 0.8125rem;
+}
+
+.figures dd {
+  display: contents;
+}
+
+.figures__track {
+  height: 0.75rem;
+  background: var(--side);
+}
+
+.figures__bar {
+  display: block;
+  height: 100%;
+}
+
+.figures__bar--now {
+  background: var(--tone);
+}
+
+.figures__bar--usual {
+  background: var(--bar);
+}
+
+.figures__value {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+.figures__ratio {
+  display: block;
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 400;
+}
+
+.figures dd.figures__rank {
+  display: block;
+  grid-column: 2 / 4;
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
 .verdict__note {
   margin-bottom: 0.25rem;
   color: var(--muted);
@@ -534,10 +591,51 @@ a:hover {
   border-bottom: 1px solid var(--control-border);
 }
 
-.years__bar {
+/* Each year is a full-height button, so a short or empty bar is as easy to hit as a tall one. */
+.years__col {
+  position: relative;
+  display: flex;
   flex: 1 1 0;
+  align-items: flex-end;
   min-width: 0;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 2px 2px 0 0;
+  background: none;
+  cursor: pointer;
+}
+
+.years__col:disabled {
+  cursor: default;
+}
+
+.years__col:hover:not(:disabled) {
+  background: var(--hover);
+}
+
+.years__col:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* The year whose fires the map shows. */
+.years__col[aria-pressed="true"] {
+  box-shadow: inset 0 0 0 1px var(--fg);
+}
+
+.years__bar {
+  width: 100%;
   background: var(--bar);
+}
+
+.years__col:hover:not(:disabled) .years__bar {
+  background: var(--muted);
+}
+
+.years__col:hover:not(:disabled) .years__bar--now {
+  background: var(--tone);
 }
 
 .years__bar--now {
@@ -561,6 +659,12 @@ a:hover {
   font-size: 0.75rem;
   font-variant-numeric: tabular-nums;
   line-height: 1.3;
+}
+
+.years__hint {
+  margin: 0.375rem 0 0;
+  color: var(--muted);
+  font-size: 0.75rem;
 }
 
 .years__axis {
