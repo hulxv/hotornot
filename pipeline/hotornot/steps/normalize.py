@@ -1,4 +1,4 @@
-"""Normalize raw FIRMS rows from finished files into `hotspots` (CONTRACTS schema).
+"""Normalize raw FIRMS rows from finished files into `hotspots` (the published schema).
 
 Every run rebuilds the table: drop it, then refill it one slice (region, raw source, month) at
 a time in append-only transactions of `batch_rows` rows. Rows arrive in nearly the order of

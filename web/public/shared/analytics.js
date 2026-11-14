@@ -1,4 +1,4 @@
-// Calendar analytics from CONTRACTS, computed from the monthly series of one snapped AOI.
+// Calendar analytics, computed from the monthly series of one snapped AOI.
 import { SERIES, TIME, yearMonthToYm } from "./contracts.js";
 
 /** @typedef {import("./contracts.js").CalendarMonth} CalendarMonth */
@@ -91,7 +91,7 @@ export function fireSeason(medians) {
 }
 
 /**
- * The CONTRACTS `months` array, one entry per month from `range.start` to `range.end`
+ * The calendar's `months` array, one entry per month from `range.start` to `range.end`
  * (default: the first and last covered month). Statistics always use every covered month, so
  * `monthlySums` must span the whole record even when the range is shorter.
  * @param {Iterable<MonthSums>} monthlySums

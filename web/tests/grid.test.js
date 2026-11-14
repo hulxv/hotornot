@@ -42,7 +42,7 @@ describe("grid vectors", () => {
 });
 
 describe("hand-computed cells", () => {
-  it("matches the CONTRACTS examples", () => {
+  it("matches the grid examples", () => {
     // row = floor(120.6 * 20) = 2412, col = floor(211.2 * 20) = 4224.
     assert.equal(cellOf(30.6, 31.2), 2412 * 7200 + 4224);
     assert.equal(cellOf(30.6, 31.2), 17370624);

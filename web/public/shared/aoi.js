@@ -1,4 +1,4 @@
-// AOI rules from CONTRACTS. Polygon edges are straight lines in lon/lat everywhere here: in the
+// AOI rules. Polygon edges are straight lines in lon/lat everywhere here: in the
 // self-intersection test, the clip, the area and the snap.
 import { validateAoiShape } from "./contracts.js";
 import { COLS, EARTH_RADIUS_KM, colCenterLon, rowCellAreaKm2, rowCenterLat } from "./grid.js";
@@ -73,7 +73,7 @@ function openRing(ring) {
 const invalidAoi = (message) => ({ ok: false, code: "invalid_aoi", message });
 
 /**
- * CONTRACTS checks plus a simple-polygon test. Repeated consecutive positions are allowed.
+ * The AOI checks plus a simple-polygon test. Repeated consecutive positions are allowed.
  * @param {unknown} polygon
  * @returns {{ ok: true, value: Aoi } | Invalid}
  */

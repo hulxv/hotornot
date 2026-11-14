@@ -1,4 +1,4 @@
-// The calendar flow from CONTRACTS, split so the current-month and export routes can reuse
+// The calendar flow, split so the current-month and export routes can reuse
 // each step: open the published version, resolve the AOI to a region and its snapped cells,
 // read the monthly sums, build the months.
 import { createHash } from "node:crypto";
@@ -136,7 +136,7 @@ export function readMetadata(serving) {
 }
 
 /**
- * The CONTRACTS AOI rules: the region whose bbox holds most of the AOI, its cells centered
+ * The AOI rules: the region whose bbox holds most of the AOI, its cells centered
  * inside the AOI, and `too_small` below 4 covered cells.
  * @param {Serving} serving
  * @param {Aoi} aoi a polygon that passed `validateAoi`
@@ -178,7 +178,7 @@ export function readMonthlySeries(serving, regionId, coveredCells) {
 }
 
 /**
- * The CONTRACTS `months` and `fire_season` for a range. Raw mode has no fire season.
+ * The calendar's `months` and `fire_season` for a range. Raw mode has no fire season.
  * @param {{ sums: MonthSums[], flags: MonthFlags[] }} series from `readMonthlySeries`
  * @param {{ start: string, end: string, series: Series }} request
  * @returns {CalendarMonths}
@@ -263,7 +263,7 @@ export function calendarMonths(serving, regionId, coveredCells, request) {
 }
 
 /**
- * The CONTRACTS calendar body. Only `months` and `fire_season` come from the cache: the AOI
+ * The calendar body. Only `months` and `fire_season` come from the cache: the AOI
  * block depends on the drawn polygon, not just its covered cells.
  * @param {Serving} serving
  * @param {ResolvedAoi} resolved

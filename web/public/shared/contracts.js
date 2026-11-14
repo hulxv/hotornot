@@ -152,7 +152,7 @@ export function validateAoiShape(aoi) {
 }
 
 /**
- * CONTRACTS has no code for a bad `series` or a body that is not an object; they map to
+ * The API has no code for a bad `series` or a body that is not an object; they map to
  * `bad_range` and `invalid_aoi`.
  * @returns {{ ok: true, value: CalendarRequest } | Invalid}
  */
@@ -283,7 +283,7 @@ function tuple(checks) {
 }
 
 /**
- * Unknown fields are problems: responses must match CONTRACTS exactly.
+ * Unknown fields are problems: responses must match these shapes exactly.
  * @param {Record<string, Check>} shape
  * @returns {Check}
  */
@@ -506,7 +506,7 @@ export const checkValidationSummary = named(validationSummary, "validation_summa
 export const checkRegionValidation = named(regionValidation, "validation");
 export const checkDetectionCurve = named(detectionCurve, "detection_curve");
 export const checkKTable = named(kTable, "k_table");
-/** Not a CONTRACTS artifact: one region's `region_cells` rows, as the mocks and fixtures hold them. */
+/** Not a published artifact: one region's `region_cells` rows, as the mocks and fixtures hold them. */
 export const checkRegionCells = named(regionCells, "region_cells");
 /** One point-tile row after CSV parsing. */
 export const checkTileRow = named(tileRow, "row");

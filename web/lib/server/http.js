@@ -14,7 +14,7 @@ export function errorResponse(code, message, regions) {
 }
 
 /**
- * Parses a JSON body and runs a `contracts.js` validator, answering with the CONTRACTS error
+ * Parses a JSON body and runs a `contracts.js` validator, answering with the API error
  * body when either fails.
  * @template T
  * @param {Request} request

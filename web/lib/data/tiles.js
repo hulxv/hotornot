@@ -129,7 +129,7 @@ class TileParser {
       this.#line += 1;
       if (this.#line === 1) {
         if (line.replace(/^﻿/, "") !== HEADER) {
-          throw new DataError("bad_tile", `${this.location}: header is not the CONTRACTS tile header: ${line.slice(0, 200)}`);
+          throw new DataError("bad_tile", `${this.location}: header is not the tile header: ${line.slice(0, 200)}`);
         }
         continue;
       }

@@ -36,8 +36,8 @@ export const mocks = {
 };
 
 /**
- * Largest overlap between the AOI's bbox and a region's bbox: a stand-in for the CONTRACTS
- * region rule.
+ * Largest overlap between the AOI's bbox and a region's bbox: a stand-in for the real region
+ * rule.
  * @param {Aoi} aoi
  * @returns {RegionId | null}
  */

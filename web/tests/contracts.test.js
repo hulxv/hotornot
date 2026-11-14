@@ -171,7 +171,7 @@ describe("shape checks", () => {
     assert.deepEqual(checkMeta("validation:atlantis", {}), ["validation:atlantis: unknown meta key"]);
   });
 
-  it("build export filenames as CONTRACTS spells them", () => {
+  it("build export filenames in the agreed form", () => {
     assert.equal(exportFilename("summary", "nile_delta", "2000-11", "2026-11"), "hotornot_summary_nile_delta_2000-11_2026-11.csv");
   });
 });

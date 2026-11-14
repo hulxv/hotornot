@@ -1,4 +1,4 @@
-"""Publish the pipeline database as the files the web app reads (CONTRACTS "Published data"):
+"""Publish the pipeline database as the files the web app reads:
 
     publish/latest.json
     publish/vN/serving.sqlite
@@ -571,7 +571,7 @@ def print_size_report(version, sizes, log=print):
 
 
 def check_tiles(version_dir, tiles, cells, method):
-    """Read every tile back: CONTRACTS header and fields, sort order, files equal to
+    """Read every tile back: header and fields, sort order, files equal to
     `regions.tiles`, and per region-year row counts and in-series weight sums equal to `cells`."""
     problems = []
     for rid, listed in tiles.items():

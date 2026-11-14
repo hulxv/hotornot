@@ -1,4 +1,4 @@
-"""Pipeline paths, region config and the CONTRACTS time constants."""
+"""Pipeline paths, region config and the series time constants."""
 import json
 from datetime import date
 from pathlib import Path
@@ -14,8 +14,7 @@ AQUA_START = date(2002, 7, 4)
 SNPP_START = date(2012, 1, 20)
 N20_START = date(2018, 4, 1)
 VIIRS_SWITCH = date(2026, 11, 2)
-# The series uses VIIRS (and drops MODIS) from this date, before SNPP_START: see
-# "Series sources by date" in CONTRACTS.
+# The series uses VIIRS (and drops MODIS) from this date, before SNPP_START.
 VIIRS_SERIES_START = date(2012, 1, 1)
 
 # Inclusive (first day, last day) ranges.

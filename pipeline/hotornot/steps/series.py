@@ -101,7 +101,7 @@ def role_of(satellite, acq_date, fire_type, masked, gapfill_days):
         return "modis" if acq_date < VIIRS_FROM else "modis_overlap"
     if satellite == "S-NPP":
         if acq_date >= SWITCH:
-            raise ValueError(f"S-NPP row on {acq_date}: CONTRACTS has no role for S-NPP"
+            raise ValueError(f"S-NPP row on {acq_date}: the series has no role for S-NPP"
                              f" from {SWITCH}")
         return "snpp"
     if satellite == "NOAA-20":

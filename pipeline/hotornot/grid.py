@@ -1,4 +1,4 @@
-"""The global grid from CONTRACTS. web/lib/grid.ts implements the same formulas; both must
+"""The global 0.05° grid. web/public/shared/grid.js implements the same formulas; both must
 pass shared/grid_vectors.json."""
 import math
 

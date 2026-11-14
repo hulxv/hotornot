@@ -22,7 +22,7 @@ import { REGION_LABEL_LAYER, basemapPaint, fallbackStyle, overlayLayers, overlay
 import { cellPolygon as sharedCellPolygon, cellsInBbox } from "../public/shared/grid.js";
 import metadata from "../mocks/metadata.json" with { type: "json" };
 
-// The CONTRACTS cell formula, standing in for shared/grid.js.
+// The grid's cell formula, standing in for shared/grid.js.
 const rowOf = (lat) => Math.min(Math.floor(Math.round((lat + 90) * 20 * 1e6) / 1e6), 3599);
 const colOf = (lon) => Math.min(Math.floor(Math.round((lon + 180) * 20 * 1e6) / 1e6), 7199);
 const cellOf = (lat, lon) => rowOf(lat) * 7200 + colOf(lon);

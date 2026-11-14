@@ -28,7 +28,7 @@ const MOCK_META = {
 };
 
 /**
- * A published meta value that passes its CONTRACTS shape check. A malformed one is reported
+ * A published meta value that passes its shape check in contracts.js. A malformed one is reported
  * and dropped rather than replaced by a mock, so a publish bug never hides behind mock numbers.
  * @param {import("../lib/data/serving.js").Serving} serving
  * @param {string} key

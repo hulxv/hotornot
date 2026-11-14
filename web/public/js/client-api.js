@@ -13,7 +13,7 @@ import { TIME } from "../shared/contracts.js";
 
 export const RECORD_START_MONTH = TIME.RECORD_START.slice(0, 7);
 
-/** An API error body, or a failure to reach the API, with the CONTRACTS code when there is one. */
+/** An API error body, or a failure to reach the API, with the API's error code when there is one. */
 export class ApiError extends Error {
   /**
    * @param {ClientErrorCode} code

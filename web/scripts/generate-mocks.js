@@ -1,5 +1,5 @@
 // Writes web/mocks/*.json. Every number is synthetic: seeded noise around hand-picked monthly
-// climatologies, then run through the CONTRACTS analytics so the files are self-consistent.
+// climatologies, then run through the shared analytics so the files are self-consistent.
 // Run with `npm run mocks`; output is deterministic.
 import { createHash } from "node:crypto";
 import { mkdirSync, writeFileSync } from "node:fs";
@@ -91,7 +91,7 @@ function* yms(first, last) {
   for (let ym = first; ym <= last; ym = ym % 100 === 12 ? ym + 89 : ym + 1) yield ym;
 }
 
-// CONTRACTS grid.
+// The shared 0.05° grid.
 const round6 = (x) => Math.round(x * 1e6) / 1e6;
 const gridRow = (lat) => Math.min(Math.floor(round6((lat + 90) * 20)), 3599);
 const gridCol = (lon) => Math.min(Math.floor(round6((lon + 180) * 20)), 7199);

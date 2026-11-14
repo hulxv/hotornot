@@ -63,7 +63,7 @@ describe("buildMonths", () => {
     assert.deepEqual([MONTHS.at(-1).year, MONTHS.at(-1).month], [2026, 11]);
   });
 
-  it("passes the CONTRACTS calendar shape check", () => {
+  it("passes the calendar shape check", () => {
     const response = {
       region_id: "nile_delta",
       units: "modis_equivalent_hotspots",

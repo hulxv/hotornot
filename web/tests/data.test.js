@@ -129,7 +129,7 @@ describe("fixture (scripts/make-fixture.js)", () => {
   const db = new DatabaseSync(join(FIXTURE, FIXTURE_VERSION, "serving.sqlite"), { readOnly: true });
   after(() => db.close());
 
-  it("has the CONTRACTS tables, columns and keys", () => {
+  it("has the published tables, columns and keys", () => {
     const tables = {
       meta: [["key", "value"], ["key"]],
       regions: [["region_id", "name", "bbox", "sp_until", "nrt_until", "tiles"], ["region_id"]],
@@ -187,7 +187,7 @@ describe("fixture (scripts/make-fixture.js)", () => {
     }
   });
 
-  it("has tiles that follow CONTRACTS: header, row shapes, order, tile names", () => {
+  it("has tiles in the published form: header, row shapes, order, tile names", () => {
     for (const [tile, rows] of Object.entries(tileRowsOnDisk)) {
       assert.ok(rows.length > 1000, tile);
       rows.forEach((row, i) => {

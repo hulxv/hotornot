@@ -1,4 +1,4 @@
-// The CONTRACTS grid, shared by the browser and the server. pipeline/hotornot/grid.py implements
+// The 0.05° grid, shared by the browser and the server. pipeline/hotornot/grid.py implements
 // the same formulas; both must pass shared/grid_vectors.json.
 import { GRID_DEG } from "./contracts.js";
 

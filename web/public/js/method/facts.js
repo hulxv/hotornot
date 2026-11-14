@@ -70,7 +70,7 @@ export function satellites({ viirsSwitch = TIME.VIIRS_SWITCH } = {}) {
 }
 
 /**
- * Which camera feeds the record in each period (CONTRACTS, series sources by date).
+ * Which camera feeds the record in each period (the series sources by date).
  * @param {{ viirsSwitch?: string }} [options]
  */
 export function recordPeriods({ viirsSwitch = TIME.VIIRS_SWITCH } = {}) {
