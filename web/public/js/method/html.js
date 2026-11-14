@@ -54,7 +54,7 @@ export function legendHtml(items) {
 export function lineLegendItems(series) {
   return series.map((line) => ({
     key: line.key,
-    label: line.shipped ? `${line.label} (shipped)` : line.label,
+    label: line.shipped ? `${line.label} (in use)` : line.label,
     style: line.style,
     width: line.shipped ? line.style.width + 1 : line.style.width,
   }));
@@ -107,8 +107,8 @@ const maybe = (value, format) => (typeof value === "number" && Number.isFinite(v
 
 /** @param {SeamModel} model */
 export function seamNumbersHtml(model) {
-  const columns = [{ label: "Month" }, { label: "MODIS", numeric: true }, { label: "Raw VIIRS", numeric: true }, { label: "Harmonized, ratio", numeric: true }];
-  if (model.hasModel) columns.push({ label: "Harmonized, model", numeric: true });
+  const columns = [{ label: "Month" }, { label: "MODIS", numeric: true }, { label: "Raw VIIRS", numeric: true }, { label: "Corrected, ratio method", numeric: true }];
+  if (model.hasModel) columns.push({ label: "Corrected, detection model", numeric: true });
   columns.push({ label: "Held-out fold" });
   const rows = model.months.map((m) => {
     const row = [monthLabel(m.ym), maybe(m.modis, formatCount), maybe(m.viirs_raw, formatCount), maybe(m.ratio, formatValue)];
@@ -122,8 +122,8 @@ export function seamNumbersHtml(model) {
 /** @param {N20Model} model */
 export function n20NumbersHtml(model) {
   const rows = model.months.map((m) => [monthLabel(m.ym), formatValue(m.snpp), formatValue(m.n20)]);
-  const columns = [{ label: "Month" }, { label: "S-NPP, harmonized", numeric: true }, { label: "NOAA-20, harmonized", numeric: true }];
-  return `<p>${escapeHtml(model.description)}</p>${dataTableHtml({ caption: `${model.name}, harmonized monthly hotspots`, columns, rows })}`;
+  const columns = [{ label: "Month" }, { label: "S-NPP, corrected", numeric: true }, { label: "NOAA-20, corrected", numeric: true }];
+  return `<p>${escapeHtml(model.description)}</p>${dataTableHtml({ caption: `${model.name}, corrected monthly hotspots`, columns, rows })}`;
 }
 
 /** @param {DetectionModel} model */
@@ -165,8 +165,8 @@ export function scorecardHtml(card) {
       return (
         `<div class="table-wrap"><table class="data scores" id="scores-${escapeHtml(test.id)}">` +
         `<caption><strong>${escapeHtml(test.title)}.</strong> ${escapeHtml(test.note)}</caption>` +
-        `<thead><tr><td></td><th scope="colgroup" colspan="${span}">Annual total error against MODIS (limit ${ERROR_LIMIT})</th>` +
-        `<th scope="colgroup" colspan="${span}">Monthly correlation r (at least ${R_LIMIT})</th></tr>` +
+        `<thead><tr><td></td><th scope="colgroup" colspan="${span}">Yearly totals, % off MODIS (limit ${ERROR_LIMIT})</th>` +
+        `<th scope="colgroup" colspan="${span}">How closely the months line up, r (at least ${R_LIMIT})</th></tr>` +
         `<tr><th scope="col">Region</th>${methodHead}${methodHead}</tr></thead>` +
         `<tbody>${body}</tbody></table></div>`
       );
@@ -177,12 +177,12 @@ export function scorecardHtml(card) {
     : `<p>This data version was published with <strong>${escapeHtml(WEIGHT_METHOD_NAMES[decision.shipped])}</strong>.</p>`;
   return (
     `<div class="decision">` +
-    `<p class="decision-head">Decision: <strong>${escapeHtml(WEIGHT_METHOD_NAMES[decision.method])}</strong> ships.</p>` +
+    `<p class="decision-head">Decision: the app uses <strong>${escapeHtml(WEIGHT_METHOD_NAMES[decision.method])}</strong>.</p>` +
     (decision.modelRan
-      ? `<p>The model met both limits in <strong>${decision.passed} of ${decision.of}</strong> regions on the leave-two-years-out test.</p>`
+      ? `<p>The model met both limits in <strong>${decision.passed} of ${decision.of}</strong> regions on the test that hides two years at a time.</p>`
       : "<p>No detection model was validated, so the ratio method is the only candidate.</p>") +
     mismatch +
-    `<p class="rule">Rule: ${escapeHtml(decision.rule)}</p>` +
+    `<details class="science"><summary>For scientists: the exact rule</summary><p class="rule">${escapeHtml(decision.rule)}</p></details>` +
     `</div>${tables}`
   );
 }
@@ -198,9 +198,9 @@ export function n20ScoresHtml(card) {
     .join("");
   return (
     `<div class="table-wrap"><table class="data scores" id="scores-n20">` +
-    `<caption>NOAA-20 against S-NPP, both harmonized, on the years both flew</caption>` +
-    `<thead><tr><th scope="col">Region</th><th scope="col" class="num">Annual total error (limit ${ERROR_LIMIT})</th>` +
-    `<th scope="col" class="num">Monthly correlation r (at least ${R_LIMIT})</th></tr></thead>` +
+    `<caption>NOAA-20 against S-NPP, both corrected, on the years both flew</caption>` +
+    `<thead><tr><th scope="col">Region</th><th scope="col" class="num">Yearly totals, % off (limit ${ERROR_LIMIT})</th>` +
+    `<th scope="col" class="num">How closely the months line up, r (at least ${R_LIMIT})</th></tr></thead>` +
     `<tbody>${body}</tbody></table></div>`
   );
 }

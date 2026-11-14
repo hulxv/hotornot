@@ -1,3 +1,4 @@
+import { mountDiagrams } from "./diagrams-dom.js";
 import { CHART_HEIGHT, detectionOption, n20Option, seamOption } from "./option.js";
 import {
   chartCardHtml,
@@ -199,7 +200,8 @@ export function renderMethodPage(body, doc = document) {
   const attribution = byId("attribution");
   if (attribution) attribution.textContent = view.attribution;
 
-  return { view, charts: [...mounted.values()] };
+  const diagrams = mountDiagrams(body, doc);
+  return { view, charts: [...mounted.values()], diagrams };
 }
 
 /**
@@ -227,9 +229,10 @@ export async function startMethodPage(doc = document) {
     await pageLoaded(doc);
     const status = doc.getElementById("method-status");
     if (status) {
-      status.innerHTML = `<p class="notice">The validation results did not load (${escapeHtml(error.message)}). Reload the page to try again; the text below still describes the method.</p>`;
+      status.innerHTML = `<p class="notice">The test results did not load (${escapeHtml(error.message)}). Reload the page to try again; the text below still describes the method.</p>`;
     }
     for (const element of doc.querySelectorAll("[data-loading]")) element.textContent = "Not available: the results did not load.";
+    mountDiagrams(null, doc);
     console.error(error);
   }
 }
