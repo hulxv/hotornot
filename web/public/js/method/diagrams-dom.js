@@ -1,6 +1,6 @@
 import { TIME } from "../../shared/contracts.js";
 import { MONTH_LONG } from "../calendar/transform.js";
-import { CAMERAS, PIPELINE_STEPS, RUN } from "./facts.js";
+import { CAMERAS, RUN_COUNTS, roughly } from "./facts.js";
 import {
   allLandCurve,
   cameraView,
@@ -12,8 +12,6 @@ import {
   describeStep,
   equationHtml,
   formatMw,
-  pipelineDetailHtml,
-  pipelineHtml,
   stepText,
   testSteps,
   testSvg,
@@ -23,7 +21,6 @@ import {
 } from "./diagrams.js";
 import { mountExplorables } from "./explorables.js";
 import { escapeHtml } from "./html.js";
-import { formatDate } from "./transform.js";
 
 /** @typedef {import("./transform.js").MethodBody} MethodBody */
 
@@ -35,9 +32,9 @@ const COUNTED_DEFAULT_MW = 5;
 const controlValue = (control) => control.value ?? control.getAttribute?.("value") ?? "";
 
 /**
- * Draws the five diagrams into method.html and wires their controls. `body` is the
- * /api/method body, or null when it did not load: the timeline, the cameras and the pipeline
- * need no data, so they draw either way.
+ * Draws the diagrams into method.html and wires their controls. `body` is the /api/method
+ * body, or null when it did not load: the timeline, the cameras and the widgets need no data,
+ * so they draw either way.
  * @param {MethodBody | null} body
  * @param {Document} [doc]
  */
@@ -104,21 +101,7 @@ export function mountDiagrams(body, doc = document) {
 
   mountCounted(body, doc, fit);
 
-  const steps = byId("pipeline-steps");
-  const detail = byId("pipeline-detail");
-  if (steps && detail) {
-    steps.innerHTML = pipelineHtml(PIPELINE_STEPS, PIPELINE_STEPS[0].id);
-    detail.innerHTML = pipelineDetailHtml(PIPELINE_STEPS[0]);
-    steps.addEventListener("click", (event) => {
-      const button = event.target?.closest?.("[data-step]");
-      if (!button) return;
-      const id = button.getAttribute("data-step");
-      for (const step of PIPELINE_STEPS) byId(`pipe-${step.id}`)?.setAttribute("aria-pressed", String(step.id === id));
-      detail.innerHTML = pipelineDetailHtml(PIPELINE_STEPS.find((step) => step.id === id));
-    });
-    const run = byId("pipeline-run");
-    if (run) run.textContent = `Figures from the run of ${formatDate(RUN.date)}, rounded.`;
-  }
+  for (const element of doc.querySelectorAll('[data-fill="downloaded"]')) element.textContent = roughly(RUN_COUNTS.downloaded);
 
   const player = mountTests(body, doc, fit);
   const explorables = mountExplorables(doc);

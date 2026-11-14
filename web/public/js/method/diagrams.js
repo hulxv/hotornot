@@ -136,33 +136,6 @@ export function timelineHtml(layout) {
   );
 }
 
-const ARROW =
-  '<svg class="pipe-arrow" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true" focusable="false"><path d="M2 8h11M9 4l4 4-4 4"/></svg>';
-
-/**
- * Diagram 4: one toggle button per pipeline step, the chosen one pressed.
- * @param {readonly { id: string, name: string, figure: string }[]} steps
- * @param {string} chosen
- */
-export function pipelineHtml(steps, chosen) {
-  return steps
-    .map(
-      (step, i) =>
-        `<li>${i > 0 ? ARROW : ""}<button type="button" id="pipe-${escapeHtml(step.id)}" data-step="${escapeHtml(step.id)}" ` +
-        `aria-controls="pipeline-detail" aria-pressed="${step.id === chosen}"><span class="pipe-name">${escapeHtml(step.name)}</span>` +
-        `<span class="pipe-figure">${escapeHtml(step.figure)}</span></button></li>`,
-    )
-    .join("");
-}
-
-/** @param {{ name: string, text: readonly string[], link: { href: string, text: string } }} step */
-export function pipelineDetailHtml(step) {
-  return (
-    `<h3>${escapeHtml(step.name)}</h3>${step.text.map((text) => `<p>${escapeHtml(text)}</p>`).join("")}` +
-    `<p><a href="${escapeHtml(step.link.href)}">${escapeHtml(step.link.text)}</a></p>`
-  );
-}
-
 /**
  * Diagram 2: what one camera reports for the toy patch when its strongest fire gives off
  * `strongestMw`. Fires in one square add up, and the square counts once.

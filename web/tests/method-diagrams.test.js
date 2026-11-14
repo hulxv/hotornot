@@ -23,8 +23,6 @@ import {
   formatMw,
   missText,
   periodText,
-  pipelineDetailHtml,
-  pipelineHtml,
   stepText,
   testSteps,
   testSvg,
@@ -33,7 +31,7 @@ import {
   yearBlocksHtml,
   yearFraction,
 } from "../public/js/method/diagrams.js";
-import { CAMERAS, PIPELINE_STEPS, RUN_COUNTS, recordPeriods, roughly, satellites } from "../public/js/method/facts.js";
+import { CAMERAS, RUN_COUNTS, recordPeriods, roughly, satellites } from "../public/js/method/facts.js";
 import { renderMethodPage } from "../public/js/method/page.js";
 import { TIME } from "../public/shared/contracts.js";
 import { fixtureDir } from "./fixtures/fixture.js";
@@ -70,12 +68,9 @@ function textOverflow(svg, width) {
 describe("facts", () => {
   it("rounds the run's counts to two significant digits", () => {
     assert.equal(roughly(RUN_COUNTS.downloaded), "13 million");
-    assert.equal(roughly(RUN_COUNTS.viirsWeighted), "9.4 million");
-    assert.equal(roughly(RUN_COUNTS.inRecord), "8.1 million");
-    assert.equal(roughly(RUN_COUNTS.matchups), "910,000");
-    assert.equal(roughly(RUN_COUNTS.notVegetation), "510,000");
-    assert.equal(roughly(RUN_COUNTS.duplicates), "12,000");
-    assert.equal(roughly(RUN_COUNTS.nearFlares), "12,000");
+    assert.equal(roughly(9_416_699), "9.4 million");
+    assert.equal(roughly(908_862), "910,000");
+    assert.equal(roughly(11_968), "12,000");
     assert.equal(roughly(48), "48");
     assert.equal(roughly(10_400_000), "10 million");
   });
@@ -102,21 +97,6 @@ describe("facts", () => {
     );
   });
 
-  it("has six pipeline steps, each linking to a part of method.html", () => {
-    assert.deepEqual(
-      PIPELINE_STEPS.map((step) => step.name),
-      ["Download", "Clean", "Match", "Learn", "Weigh and add up", "Test and publish"],
-    );
-    for (const step of PIPELINE_STEPS) {
-      assert.match(step.link.href, /^#[\w-]+$/);
-      assert.ok(HTML.includes(`id="${step.link.href.slice(1)}"`), step.link.href);
-      assert.ok(step.text.length > 0 && step.figure.length > 0);
-    }
-    const text = PIPELINE_STEPS.flatMap((step) => step.text).join(" ");
-    for (const figure of ["about 13 million", "about 510,000", "about 12,000", "about 910,000", "about 9.4 million", "About 8.1 million"]) {
-      assert.ok(text.includes(figure), figure);
-    }
-  });
 });
 
 describe("timeline layout", () => {
@@ -422,17 +402,6 @@ describe("fold steps", () => {
   });
 });
 
-describe("pipeline", () => {
-  it("marks the chosen step pressed and links its explanation to the evidence", () => {
-    const html = pipelineHtml(PIPELINE_STEPS, "match");
-    assert.equal((html.match(/aria-pressed="true"/g) ?? []).length, 1);
-    assert.ok(html.includes('id="pipe-match" data-step="match" aria-controls="pipeline-detail" aria-pressed="true"'));
-    assert.equal((html.match(/class="pipe-arrow"/g) ?? []).length, 5);
-    const detail = pipelineDetailHtml(PIPELINE_STEPS[1]);
-    assert.ok(detail.startsWith("<h3>Clean</h3>") && detail.includes('<a href="#caveat-flares">'));
-  });
-});
-
 describe("diagrams on the page", () => {
   const echartsStub = () => {
     globalThis.echarts = { init: () => ({ setOption() {}, resize() {} }) };
@@ -476,12 +445,7 @@ describe("diagrams on the page", () => {
       assert.match(ids(doc, "counted-chance").textContent, /^MODIS would have seen a fire like this about \d+% of the time\.$/);
       assert.ok(ids(doc, "counted-note").hidden);
 
-      assert.equal(doc.querySelectorAll("#pipeline-steps button").length, 6);
-      fire(ids(doc, "pipeline-steps"), "click", { target: ids(doc, "pipe-weigh").querySelector("span") });
-      assert.equal(ids(doc, "pipe-weigh").getAttribute("aria-pressed"), "true");
-      assert.equal(ids(doc, "pipe-download").getAttribute("aria-pressed"), "false");
-      assert.match(ids(doc, "pipeline-detail").textContent, /^Weigh and add up/);
-      assert.equal(ids(doc, "pipeline-run").textContent, "Figures from the run of 13 November 2026, rounded.");
+      assert.equal(doc.querySelector('[data-fill="downloaded"]').textContent, "13 million");
 
       assert.equal(ids(doc, "test-title").textContent, "Test 1 of 4: 2012 and 2013 hidden");
       assert.ok(ids(doc, "test-back").disabled);
@@ -532,12 +496,12 @@ describe("diagrams on the page", () => {
     }
   });
 
-  it("still draws the timeline, cameras and pipeline when the results do not load", () => {
+  it("still draws the timeline, cameras and widgets when the results do not load", () => {
     const doc = parseHtml(HTML);
     mountDiagrams(null, /** @type {any} */ (doc));
     assert.equal(doc.querySelectorAll("#timeline button").length, 7);
     assert.ok(doc.getElementById("cameras-viirs").querySelector("svg"));
-    assert.equal(doc.querySelectorAll("#pipeline-steps button").length, 6);
+    assert.ok(doc.getElementById("day-map").querySelector("svg"));
     assert.match(doc.getElementById("counted-eq").textContent, /did not load/);
     assert.match(doc.getElementById("test-bars").textContent, /did not load/);
     assert.ok(doc.getElementById("test-controls").hidden);

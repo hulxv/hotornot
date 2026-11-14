@@ -1,5 +1,5 @@
-// The two explorable widgets in "From raw data to the calendar": one real day through the
-// pipeline, and the Clean step's gas-flare rule over 90 days. Pure state functions and SVG/HTML
+// The two explorable widgets in "Follow one real day": one real day through the pipeline, and,
+// in a fold, the Clean step's gas-flare rule over 90 days. Pure state functions and SVG/HTML
 // strings first; mountExplorables at the end wires them to the page.
 import { GRID_DEG } from "../../shared/contracts.js";
 import { formatWeight } from "../map/point-info.js";
@@ -29,16 +29,13 @@ const addDays = (iso, n) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 864e5)
 /** @typedef {DaySample["rows"][number]} DayRow */
 
 export const DAY_STEPS = Object.freeze([
-  Object.freeze({ id: "arrive", name: "Arrive", pipe: "download" }),
-  Object.freeze({ id: "clean", name: "Clean", pipe: "clean" }),
-  Object.freeze({ id: "match", name: "Match", pipe: "match" }),
-  Object.freeze({ id: "weigh", name: "Weigh", pipe: "learn" }),
-  Object.freeze({ id: "add", name: "Add up", pipe: "weigh" }),
+  Object.freeze({ id: "arrive", name: "Arrive" }),
+  Object.freeze({ id: "clean", name: "Clean" }),
+  Object.freeze({ id: "match", name: "Match" }),
+  Object.freeze({ id: "weigh", name: "Weigh" }),
+  Object.freeze({ id: "add", name: "Add up" }),
 ]);
 export const STEP = Object.freeze({ arrive: 0, clean: 1, match: 2, weigh: 3, add: 4 });
-
-/** The widget step a step of the pipeline diagram jumps to, or -1 when none applies. @param {string} pipeId */
-export const stepForPipe = (pipeId) => DAY_STEPS.findIndex((step) => step.pipe === pipeId);
 
 /** "MODIS saw it", "missed it", or not covered by a MODIS look within 15 minutes. @param {DayRow} row */
 function matchOf(row) {
@@ -647,12 +644,8 @@ export function flareScienceHtml(sample) {
 /** The day slider's output: "Day 39 of 90 · 23 September 2026". @param {FlareState} state */
 export const flareDayText = (state) => `Day ${state.day} of ${state.of} · ${formatDate(state.date)}`;
 
-// Milliseconds per step for each speed: a pipeline step needs time to read, a day of the flare
-// box only a glance.
-export const SPEEDS = Object.freeze({
-  day: Object.freeze({ slow: 6000, normal: 3500, fast: 1500 }),
-  flare: Object.freeze({ slow: 700, normal: 300, fast: 120 }),
-});
+// Milliseconds per step: a pipeline step needs time to read, a day of the flare box only a glance.
+export const STEP_DELAY = Object.freeze({ day: 3500, flare: 300 });
 
 /** @param {any} element @param {"textContent" | "innerHTML"} key @param {string} value */
 const fill = (element, key, value) => {
@@ -709,23 +702,21 @@ function motionPreference(doc, override) {
 }
 
 /**
- * Play/Pause with a speed choice. Play steps at once, then every `speeds[speed]` ms (a new
- * speed applies from now), and starts again from the beginning when it is already at the end.
- * Under reduced motion Play is off; the other controls still work.
- * @param {{ play: any, speed: any, note: any, speeds: Record<string, number>, last: number, index: () => number,
+ * Play/Pause. Play steps at once, then every `delay` ms, and starts again from the beginning
+ * when it is already at the end. Under reduced motion Play is off; the other controls still work.
+ * @param {{ play: any, note: any, delay: number, last: number, index: () => number,
  *   show: (i: number) => void, motion: ReturnType<typeof motionPreference> }} options
  */
-function makePlayer({ play, speed, note, speeds, last, index, show, motion }) {
+function makePlayer({ play, note, delay, last, index, show, motion }) {
   /** @type {ReturnType<typeof setTimeout> | null} */
   let timer = null;
-  const delay = () => speeds[controlValue(speed)] ?? speeds.normal;
   const stop = () => {
     if (timer !== null) clearTimeout(timer);
     timer = null;
     if (play) play.textContent = "Play";
   };
   const schedule = () => {
-    timer = index() >= last ? null : setTimeout(tick, delay());
+    timer = index() >= last ? null : setTimeout(tick, delay);
     if (timer === null) stop();
   };
   const tick = () => {
@@ -741,23 +732,16 @@ function makePlayer({ play, speed, note, speeds, last, index, show, motion }) {
   const applyMotion = () => {
     if (motion.reduced) stop();
     if (play) play.disabled = motion.reduced;
-    if (speed) speed.disabled = motion.reduced;
     if (note) note.hidden = !motion.reduced;
   };
   motion.listeners.push(applyMotion);
   applyMotion();
   play?.addEventListener("click", () => (timer === null ? start() : stop()));
-  speed?.addEventListener("change", () => {
-    if (timer === null) return;
-    clearTimeout(timer);
-    timer = setTimeout(tick, delay());
-  });
   return { start, stop, get playing() { return timer !== null; } };
 }
 
 /**
- * Widget 1: one real day through the pipeline's steps. A click on a step of the pipeline
- * diagram jumps here too.
+ * Widget 1: one real day through the pipeline's steps.
  * @param {Document} doc
  * @param {ReturnType<typeof sizer>} fit
  * @param {ReturnType<typeof motionPreference>} motion
@@ -821,9 +805,8 @@ function mountDay(doc, fit, motion) {
   };
   const player = makePlayer({
     play: byId("day-play"),
-    speed: byId("day-speed"),
     note: byId("day-motion-note"),
-    speeds: SPEEDS.day,
+    delay: STEP_DELAY.day,
     last,
     index: () => state.step,
     show,
@@ -853,13 +836,6 @@ function mountDay(doc, fit, motion) {
       });
     }
   }
-  byId("pipeline-steps")?.addEventListener("click", (event) => {
-    const button = event.target?.closest?.("[data-step]");
-    const i = button ? stepForPipe(button.getAttribute("data-step")) : -1;
-    if (i < 0) return;
-    player.stop();
-    show(i);
-  });
   return {
     model,
     show,
@@ -875,7 +851,7 @@ function mountDay(doc, fit, motion) {
 }
 
 /**
- * Widget 2: 90 days around a gas flare, with a day slider and Play.
+ * Widget 2: 90 days around a gas flare, with a day slider and Play. Closing its fold stops Play.
  * @param {Document} doc
  * @param {ReturnType<typeof sizer>} fit
  * @param {ReturnType<typeof motionPreference>} motion
@@ -913,9 +889,8 @@ function mountFlare(doc, fit, motion) {
   };
   const player = makePlayer({
     play: byId("flare-play"),
-    speed: byId("flare-speed"),
     note: byId("flare-motion-note"),
-    speeds: SPEEDS.flare,
+    delay: STEP_DELAY.flare,
     last: FLARE.days,
     index: () => state.day,
     show: (day) => show(Math.max(1, day)),
@@ -929,6 +904,10 @@ function mountFlare(doc, fit, motion) {
   byId("flare-reset")?.addEventListener("click", () => {
     player.stop();
     show(1, true);
+  });
+  const fold = byId("flare-more");
+  fold?.addEventListener("toggle", () => {
+    if (!fold.hasAttribute("open")) player.stop();
   });
   return {
     model,

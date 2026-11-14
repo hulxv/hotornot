@@ -967,107 +967,22 @@ details.science dd {
   color: var(--muted);
 }
 
-/* From raw data to the calendar */
-
-.pipeline {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  margin: 1.5rem 0 0;
-  padding: 0;
-  list-style: none;
+details.ex-more {
+  max-width: 60rem;
+  margin: 1.75rem 0 0;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
 }
 
-.pipeline li {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  gap: 0.25rem;
-}
-
-.pipeline button {
-  display: flex;
-  flex-direction: column;
-  gap: 0.125rem;
-  width: 100%;
-  max-width: 24rem;
-  padding: 0.625rem 0.75rem;
-  border: 1px solid var(--control-border);
-  border-radius: 2px;
-  background: transparent;
-  color: var(--fg);
-  font: inherit;
-  text-align: left;
+details.ex-more > summary {
   cursor: pointer;
-}
-
-.pipeline button:hover {
-  background: var(--raised);
-}
-
-.pipeline button[aria-pressed="true"] {
-  background: var(--fg);
-  border-color: var(--fg);
-  color: var(--page);
-}
-
-.pipe-name {
+  padding: 0.875rem 0;
+  font-size: 1.0625rem;
   font-weight: 600;
 }
 
-.pipe-figure {
-  font-size: 0.8125rem;
-  opacity: 0.85;
-}
-
-.pipe-arrow {
-  flex: none;
-  margin-left: 1rem;
-  transform: rotate(90deg);
-  fill: none;
-  stroke: var(--muted);
-  stroke-width: 1.5;
-}
-
-.pipeline-detail {
-  max-width: 48rem;
-  margin-top: 1.25rem;
-  padding-left: 1rem;
-  border-left: 2px solid var(--fg);
-}
-
-.pipeline-detail h3 {
-  margin: 0 0 0.375rem;
-  font-size: 1.0625rem;
-}
-
-.pipeline-detail p {
-  margin: 0.375rem 0;
-  line-height: 1.6;
-}
-
-@media (min-width: 60rem) {
-  .pipeline {
-    flex-direction: row;
-    gap: 0;
-  }
-
-  .pipeline li {
-    flex: 1 1 0;
-    flex-direction: row;
-    align-items: stretch;
-    min-width: 0;
-  }
-
-  .pipeline button {
-    max-width: none;
-  }
-
-  .pipe-arrow {
-    align-self: center;
-    margin: 0 0.25rem;
-    transform: none;
-  }
+details.ex-more[open] {
+  padding-bottom: 1.25rem;
 }
 
 /* Tested on years it never saw */
@@ -1203,20 +1118,10 @@ details.science dd {
 
 /* Try it: one real day, and spotting a gas flare */
 
-main.method h3.ex-heading {
-  margin: 2.75rem 0 0.5rem;
-  font-size: 1.125rem;
-}
-
 .explorable .player {
   flex-wrap: wrap;
   align-items: center;
   margin: 0 0 0.75rem;
-}
-
-.ex-speed {
-  margin-left: 0.5rem;
-  font-weight: 600;
 }
 
 .explorable select:disabled {
@@ -1562,10 +1467,6 @@ main.method h3.ex-heading {
     margin-top: 2.5rem;
   }
 
-  main.method h3.ex-heading {
-    margin-top: 2rem;
-  }
-
   .toc {
     padding: 1rem 1.125rem;
   }
@@ -1617,4 +1518,12 @@ main.method h3.ex-heading {
   .tl-record {
     height: 2.5rem;
   }
+}
+
+/* For scientists */
+
+.science-part h3 {
+  margin: 2.5rem 0 0.5rem;
+  font-size: 1.1875rem;
+  scroll-margin-top: 1rem;
 }

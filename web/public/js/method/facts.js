@@ -1,18 +1,8 @@
 import { TIME } from "../../shared/contracts.js";
 
-export const RUN = Object.freeze({ version: "v3", date: "2026-11-13" });
-
-// Exact counts from the v3 run's reports (normalize:report, series:report, matchups, model:report).
-// The page shows them rounded with `roughly`, so a later refresh does not make the text wrong.
-export const RUN_COUNTS = Object.freeze({
-  downloaded: 13_106_216,
-  duplicates: 11_968,
-  notVegetation: 507_073,
-  nearFlares: 12_130,
-  matchups: 908_862,
-  viirsWeighted: 9_416_699,
-  inRecord: 8_118_655,
-});
+// The exact count from the v3 run's normalize report. The page shows it rounded with `roughly`,
+// so a later refresh does not make the text wrong.
+export const RUN_COUNTS = Object.freeze({ downloaded: 13_106_216 });
 
 const grouped = new Intl.NumberFormat("en-US");
 
@@ -126,61 +116,3 @@ export const PATCH_FIRES = Object.freeze(
   ].map((fire) => Object.freeze(fire)),
 );
 
-export const PIPELINE_STEPS = Object.freeze([
-  {
-    id: "download",
-    name: "Download",
-    figure: `${roughly(RUN_COUNTS.downloaded)} detections`,
-    text: [
-      `We download every fire that NASA's FIRMS service recorded in our four regions, from November 2000 to today: about ${roughly(RUN_COUNTS.downloaded)} detections from all four satellites.`,
-    ],
-    link: { href: "#caveat-coverage", text: "What the download leaves out" },
-  },
-  {
-    id: "clean",
-    name: "Clean",
-    figure: `${roughly(RUN_COUNTS.notVegetation)} set aside`,
-    text: [
-      `Some hot spots are not wildfires: gas flares at oil fields, volcanoes and factories. NASA's archive labels them, and we set aside about ${roughly(RUN_COUNTS.notVegetation)}.`,
-      `The newest months have no labels yet, so we also set aside about ${roughly(RUN_COUNTS.nearFlares)} recent ones that sit next to a known gas flare. About ${roughly(RUN_COUNTS.duplicates)} duplicate records go too.`,
-    ],
-    link: { href: "#caveat-flares", text: "Why a few flares can slip through" },
-  },
-  {
-    id: "match",
-    name: "Match",
-    figure: `${roughly(RUN_COUNTS.matchups)} matches`,
-    text: [
-      `From 2012 to 2019, MODIS and VIIRS looked at the same place within 15 minutes of each other about ${roughly(RUN_COUNTS.matchups)} times. Each one is a fair contest: same fire, same moment, two cameras.`,
-    ],
-    link: { href: "#detection-section", text: "What the matches showed" },
-  },
-  {
-    id: "learn",
-    name: "Learn",
-    figure: "one curve",
-    text: [
-      "From those matches we learn how likely MODIS is to see a fire of a given strength. Weak fires: almost never. Strong ones: almost always.",
-    ],
-    link: { href: "#detection-section", text: "The curve it learned" },
-  },
-  {
-    id: "weigh",
-    name: "Weigh and add up",
-    figure: `${roughly(RUN_COUNTS.viirsWeighted)} weights`,
-    text: [
-      `Each of about ${roughly(RUN_COUNTS.viirsWeighted)} VIIRS fires gets a weight: how much of a MODIS fire it stands for. Then each month and each 5 km square adds up its weights.`,
-      `About ${roughly(RUN_COUNTS.inRecord)} detections, from MODIS before 2012 and VIIRS after, make up the record.`,
-    ],
-    link: { href: "#k-section", text: "The region factors" },
-  },
-  {
-    id: "test",
-    name: "Test and publish",
-    figure: "4 tests",
-    text: [
-      "We check the result on years the method never saw. Only then is it sent to this app.",
-    ],
-    link: { href: "#seam", text: "See the tests" },
-  },
-]);

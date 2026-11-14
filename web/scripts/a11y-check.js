@@ -737,7 +737,7 @@ export const PAGE_PAIRS = {
     ui("--viirs", "--bg", "VIIRS bars"),
     text("--page", "--modis", "text on MODIS bars and year blocks"),
     text("--page", "--viirs", "text on VIIRS bars"),
-    text("--page", "--fg", "the chosen pipeline step"),
+    text("--page", "--fg", "the current step of a widget"),
     text("--muted", "--raised", "muted text on raised panels"),
     ui("--control-border", "--bg", "slider, select and button borders"),
     text("--fg", "#ffffff", "chart cards", ".surface"),

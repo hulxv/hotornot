@@ -3,11 +3,10 @@ import { readFileSync, statSync } from "node:fs";
 import { describe, it } from "node:test";
 import { checkDocument, parseHtml } from "../scripts/a11y-check.js";
 import { cellOf } from "../public/shared/grid.js";
-import { mountDiagrams } from "../public/js/method/diagrams-dom.js";
 import {
   DAY_STEPS,
-  SPEEDS,
   STEP,
+  STEP_DELAY,
   dayMapSvg,
   dayModel,
   dayScienceHtml,
@@ -25,7 +24,6 @@ import {
   monthText,
   mountExplorables,
   pickText,
-  stepForPipe,
   trayPlaces,
 } from "../public/js/method/explorables.js";
 import { FLARE } from "../public/js/method/samples/flare.js";
@@ -94,13 +92,6 @@ describe("the committed samples", () => {
 });
 
 describe("one day, step by step", () => {
-  it("jumps from the pipeline diagram's steps where one applies", () => {
-    assert.deepEqual(
-      ["download", "clean", "match", "learn", "weigh", "test"].map(stepForPipe),
-      [STEP.arrive, STEP.clean, STEP.match, STEP.weigh, STEP.add, -1],
-    );
-  });
-
   it("keeps the counts adding up after each step", () => {
     const aside = day.rows.filter((row) => row.aside).length;
     for (const state of states) {
@@ -334,7 +325,7 @@ describe("the widgets on the page", () => {
     assert.equal(doc.querySelectorAll("#day-log li").length, 1);
   });
 
-  it("plays at the chosen speed, stops at the end, and pauses when the page loses focus", (t) => {
+  it("plays a step at a time, stops at the end, and pauses when the page loses focus or the fold closes", (t) => {
     t.mock.timers.enable({ apis: ["setTimeout"] });
     const doc = parseHtml(HTML);
     /** @type {Record<string, Function[]>} */
@@ -345,35 +336,33 @@ describe("the widgets on the page", () => {
     play.click();
     assert.equal(day.step, 1, "Play steps at once");
     assert.equal(play.textContent, "Pause");
-    t.mock.timers.tick(SPEEDS.day.normal);
+    t.mock.timers.tick(STEP_DELAY.day);
     assert.equal(day.step, 2);
-    const speed = ids(doc, "day-speed");
-    speed.value = "fast";
-    speed.dispatchEvent({ type: "change" });
-    t.mock.timers.tick(SPEEDS.day.fast);
-    assert.equal(day.step, 3, "a new speed applies at once");
-    t.mock.timers.tick(SPEEDS.day.fast);
+    t.mock.timers.tick(STEP_DELAY.day);
+    t.mock.timers.tick(STEP_DELAY.day);
     assert.equal(day.step, 4);
     assert.equal(play.textContent, "Play", "stops on the last step");
     play.click();
     assert.equal(day.step, 0, "Play again starts over");
     for (const fn of windowListeners.blur ?? []) fn();
     assert.equal(play.textContent, "Play");
-    t.mock.timers.tick(SPEEDS.day.slow);
+    t.mock.timers.tick(STEP_DELAY.day * 2);
     assert.equal(day.step, 0, "nothing moves after the page lost focus");
 
     ids(doc, "flare-play").click();
     assert.equal(box.day, 2);
-    for (let i = 0; i < 37; i += 1) t.mock.timers.tick(SPEEDS.flare.normal);
+    for (let i = 0; i < 37; i += 1) t.mock.timers.tick(STEP_DELAY.flare);
     assert.equal(box.day, 39);
     assert.match(ids(doc, "flare-live").textContent, /^Day 39, 23 September: a spot has now shown heat on 20 days\./);
-    ids(doc, "flare-play").click();
+    ids(doc, "flare-more").dispatchEvent({ type: "toggle" });
     assert.equal(ids(doc, "flare-play").textContent, "Play");
+    t.mock.timers.tick(STEP_DELAY.flare * 3);
+    assert.equal(box.day, 39, "a closed fold does not keep playing");
   });
 
   it("turns Play off under reduced motion while every other control still works", () => {
     const { doc, widgets } = mount({ reducedMotion: true });
-    for (const id of ["day-play", "day-speed", "flare-play", "flare-speed"]) assert.ok(ids(doc, id).disabled, id);
+    for (const id of ["day-play", "flare-play"]) assert.ok(ids(doc, id).disabled, id);
     assert.ok(!ids(doc, "day-motion-note").hidden && !ids(doc, "flare-motion-note").hidden);
     ids(doc, "day-play").click();
     assert.equal(widgets.day.step, 0);
@@ -404,16 +393,12 @@ describe("the widgets on the page", () => {
     assert.equal(ids(doc, "day-pick").getAttribute("value"), "6");
   });
 
-  it("jumps to the matching step when a step of the pipeline diagram is clicked", () => {
-    const doc = parseHtml(HTML);
-    const { explorables } = mountDiagrams(null, /** @type {any} */ (doc));
-    const click = (step) => ids(doc, "pipeline-steps").dispatchEvent({ type: "click", target: doc.querySelector(`[data-step="${step}"]`) });
-    click("learn");
-    assert.equal(explorables.day.step, STEP.weigh);
-    assert.equal(ids(doc, "day-title").textContent, "Step 4 of 5: Weigh");
-    click("test");
-    assert.equal(explorables.day.step, STEP.weigh, "no widget step for testing");
-    click("clean");
-    assert.equal(explorables.day.step, STEP.clean);
+  it("keeps the flare widget in a closed fold after the day, and offers no speed choice", () => {
+    const { doc } = mount({ reducedMotion: false });
+    const fold = ids(doc, "flare-more");
+    assert.equal(ids(doc, "flare-widget").closest("details"), fold);
+    assert.ok(!fold.open);
+    assert.ok(HTML.indexOf('id="day-widget"') < HTML.indexOf('id="flare-more"'));
+    assert.equal(doc.querySelectorAll("select").filter((el) => /speed/.test(el.getAttribute("id") ?? "")).length, 0);
   });
 });

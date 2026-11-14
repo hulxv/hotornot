@@ -4,7 +4,7 @@
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>How it works · Hot or Not</title>
-    <meta name="description" content="How Hot or Not makes the older MODIS and the newer VIIRS fire cameras count the same way, in five diagrams, and the tests on hidden years that show it works.">
+    <meta name="description" content="How Hot or Not makes the older MODIS and the newer VIIRS fire cameras count the same way, one step at a time, and the tests on hidden years that show it works.">
     <link rel="stylesheet" href="/css/base.css">
     <link rel="stylesheet" href="/js/method/method.css">
     <link rel="modulepreload" href="/js/method/page.js">
@@ -44,7 +44,7 @@
       <h1>How it works</h1>
       <p class="lede">
         Satellites have spotted fires from space since 2000. In 2012 a sharper camera took over, and it sees many more
-        fires. These five diagrams show how we make the old and the new camera count the same way, and how we checked it.
+        fires. Here is how we make the old and the new camera count the same way, and how we checked it.
       </p>
       <div id="method-status" role="status">Loading the test results…</div>
       <noscript>
@@ -56,15 +56,10 @@
           <li><a href="#satellites">Who watched when</a></li>
           <li><a href="#problem">Same fire, two cameras</a></li>
           <li><a href="#weights">How one VIIRS fire is counted</a></li>
-          <li><a href="#pipeline">From raw data to the calendar</a></li>
+          <li><a href="#pipeline">Follow one real day</a></li>
           <li><a href="#seam">Tested on years it never saw</a></li>
-          <li><a href="#scorecard-section">The scores and the decision</a></li>
-          <li><a href="#detection-section">When MODIS sees a fire</a></li>
-          <li>
-            <a href="#k-section"><span data-method="model_v1">The region factors</span><span data-method="ratio_v1" hidden>The ratio factors</span></a>
-          </li>
-          <li><a href="#noaa20">The hand-over to NOAA-20</a></li>
           <li><a href="#caveats">What to keep in mind</a></li>
+          <li><a href="#science">For scientists</a></li>
         </ol>
       </nav>
 
@@ -212,16 +207,11 @@
       </section>
 
       <section id="pipeline" aria-labelledby="pipeline-title">
-        <h2 id="pipeline-title">From raw data to the calendar</h2>
-        <p class="prose">Six steps turn NASA's fire files into the calendar. Pick a step to see what it does.</p>
-        <ol id="pipeline-steps" class="pipeline"></ol>
-        <div id="pipeline-detail" class="pipeline-detail" aria-live="polite"></div>
-        <p id="pipeline-run" class="muted small"></p>
-
-        <h3 id="day-heading" class="ex-heading">Try it: follow one real day</h3>
+        <h2 id="pipeline-title">Follow one real day</h2>
         <p class="prose">
-          These are the real detections from one day over the Nile Delta, 13 September 2017, in the season when farmers
-          burn rice straw. Step through what the pipeline does with them, or pick a step above.
+          Over the whole record our pipeline works through about <span data-fill="downloaded">13 million</span> fire
+          detections. These are the real ones from a single day over the Nile Delta, 13 September 2017, in the season when
+          farmers burn rice straw. Step through what the pipeline does with them.
         </p>
         <figure class="diagram explorable" id="day-widget">
           <div class="player" id="day-controls">
@@ -229,12 +219,6 @@
             <button type="button" id="day-play">Play</button>
             <button type="button" id="day-next">Next</button>
             <button type="button" id="day-reset">Reset</button>
-            <label class="ex-speed" for="day-speed">Speed</label>
-            <select id="day-speed">
-              <option value="slow">Slow</option>
-              <option value="normal" selected>Normal</option>
-              <option value="fast">Fast</option>
-            </select>
           </div>
           <p id="day-motion-note" class="muted small" hidden>Play is off because your device asks for less motion. Back and Next still work.</p>
           <ol id="day-steps" class="ex-steps" aria-label="Steps"></ol>
@@ -276,48 +260,44 @@
           <div id="day-science"></div>
         </details>
 
-        <h3 id="flare-heading" class="ex-heading">Try it: spot the gas flare</h3>
-        <p class="prose">
-          NASA has not labelled the newest months yet, so the Clean step needs a rule to tell a gas flare from a farm fire. A
-          flare burns in the same spot day after day; a field burns once. Here are 90 real days near Idku, on the coast east of
-          Alexandria.
-        </p>
-        <figure class="diagram explorable" id="flare-widget">
-          <div class="dg-control">
-            <label for="flare-day">Day</label>
-            <input type="range" id="flare-day" min="1" max="90" step="1" value="1">
-            <output id="flare-day-value" for="flare-day">Day 1 of 90</output>
-          </div>
-          <div class="player" id="flare-controls">
-            <button type="button" id="flare-play">Play</button>
-            <button type="button" id="flare-reset">Reset</button>
-            <label class="ex-speed" for="flare-speed">Speed</label>
-            <select id="flare-speed">
-              <option value="slow">Slow</option>
-              <option value="normal" selected>Normal</option>
-              <option value="fast">Fast</option>
-            </select>
-          </div>
-          <p id="flare-motion-note" class="muted small" hidden>Play is off because your device asks for less motion. The day slider still works.</p>
-          <dl id="flare-counters" class="ex-counters"></dl>
-          <div id="flare-map" class="ex-box ex-flare-map"></div>
-          <ul class="dg-legend">
-            <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><circle class="ex-today" cx="7" cy="7" r="5"/></svg>Seen today, by day</li>
-            <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><circle class="ex-today-night" cx="7" cy="7" r="4.5"/></svg>Seen today, at night</li>
-            <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><rect class="ex-spot" x="1" y="1" width="12" height="12" fill-opacity="0.2"/></svg>A spot about 400 m across: the number is the days it showed heat</li>
-            <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><rect class="ex-spot-flag" x="2" y="2" width="10" height="10"/></svg>Seen on 20 days or more: a steady heat source</li>
-          </ul>
-          <p id="flare-news" class="diagram-info"></p>
-          <p id="flare-live" class="visually-hidden" aria-live="polite"></p>
-          <p id="flare-words" class="visually-hidden"></p>
-          <figcaption>
-            Each square is a spot 0.004° across, about 400 m. A spot that shows heat on 20 or more days within 90 days is a
-            steady heat source, such as a gas flare, and its detections are set aside. These are the numbers the pipeline uses.
-          </figcaption>
-        </figure>
-        <details class="science">
-          <summary>For scientists: the flare rule and this box</summary>
-          <div id="flare-science"></div>
+        <details class="ex-more" id="flare-more">
+          <summary>How the Clean step catches a gas flare</summary>
+          <p class="prose">
+            NASA has not labelled the newest months yet, so the Clean step needs a rule to tell a gas flare from a farm fire. A
+            flare burns in the same spot day after day; a field burns once. Here are 90 real days near Idku, on the coast east of
+            Alexandria.
+          </p>
+          <figure class="diagram explorable" id="flare-widget">
+            <div class="dg-control">
+              <label for="flare-day">Day</label>
+              <input type="range" id="flare-day" min="1" max="90" step="1" value="1">
+              <output id="flare-day-value" for="flare-day">Day 1 of 90</output>
+            </div>
+            <div class="player" id="flare-controls">
+              <button type="button" id="flare-play">Play</button>
+              <button type="button" id="flare-reset">Reset</button>
+            </div>
+            <p id="flare-motion-note" class="muted small" hidden>Play is off because your device asks for less motion. The day slider still works.</p>
+            <dl id="flare-counters" class="ex-counters"></dl>
+            <div id="flare-map" class="ex-box ex-flare-map"></div>
+            <ul class="dg-legend">
+              <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><circle class="ex-today" cx="7" cy="7" r="5"/></svg>Seen today, by day</li>
+              <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><circle class="ex-today-night" cx="7" cy="7" r="4.5"/></svg>Seen today, at night</li>
+              <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><rect class="ex-spot" x="1" y="1" width="12" height="12" fill-opacity="0.2"/></svg>A spot about 400 m across: the number is the days it showed heat</li>
+              <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><rect class="ex-spot-flag" x="2" y="2" width="10" height="10"/></svg>Seen on 20 days or more: a steady heat source</li>
+            </ul>
+            <p id="flare-news" class="diagram-info"></p>
+            <p id="flare-live" class="visually-hidden" aria-live="polite"></p>
+            <p id="flare-words" class="visually-hidden"></p>
+            <figcaption>
+              Each square is a spot 0.004° across, about 400 m. A spot that shows heat on 20 or more days within 90 days is a
+              steady heat source, such as a gas flare, and its detections are set aside. These are the numbers the pipeline uses.
+            </figcaption>
+          </figure>
+          <details class="science">
+            <summary>For scientists: the flare rule and this box</summary>
+            <div id="flare-science"></div>
+          </details>
         </details>
       </section>
 
@@ -345,7 +325,7 @@
           <p id="test-words" class="visually-hidden"></p>
           <figcaption>
             Orange means we counted more than MODIS, blue fewer. The shaded band is within 15%. A harder test, on 2020 to
-            2025, is in the scores below.
+            2025, is in the scores for scientists below.
           </figcaption>
         </figure>
 
@@ -370,94 +350,6 @@
             are the folds.
           </p>
         </details>
-      </section>
-
-      <section id="scorecard-section" aria-labelledby="scorecard-title">
-        <h2 id="scorecard-title">The scores and the decision</h2>
-        <p class="badge" data-mock="validation" hidden>Mock numbers, not results</p>
-        <p class="prose">
-          Two scores per region, both on hidden years: how far the yearly totals land from MODIS, and how closely the
-          months line up. A method has to do well on both.
-        </p>
-        <details class="science">
-          <summary>For scientists: why both scores</summary>
-          <p>
-            The first is the mean error of annual totals against MODIS, the second the Pearson correlation of monthly
-            totals with MODIS. Correlation alone cannot catch a change of scale, since raw VIIRS follows the seasons closely
-            while counting several times too many, so the rule needs both. The model ships when it meets both limits in at
-            least three of the four regions and beats the ratio method's annual error.
-          </p>
-        </details>
-        <div id="scorecard" data-loading></div>
-      </section>
-
-      <section id="detection-section" aria-labelledby="detection-title">
-        <h2 id="detection-title">When MODIS sees a fire</h2>
-        <p class="badge" data-mock="detection" hidden>Mock numbers, not results</p>
-        <p class="prose">
-          This is the curve the Learn step found: the stronger the fire, the more likely MODIS saw it too. It comes from
-          the moments both cameras looked at the same place.
-        </p>
-        <details class="science">
-          <summary>For scientists: the detection model</summary>
-          <p>
-            The detection share comes from a logistic regression on VIIRS fire radiative power (FRP), pixel size, day or
-            night, land cover and cluster size. Its curve against FRP is why one ratio cannot fit every place: small
-            agricultural burns, which MODIS mostly misses, get a low detection share, and large fires, which both sensors
-            see, a high one.
-          </p>
-        </details>
-        <div id="detection" data-loading></div>
-      </section>
-
-      <section id="k-section" aria-labelledby="k-title">
-        <h2 id="k-title">
-          <span data-method="model_v1">The region factors</span>
-          <span data-method="ratio_v1" hidden>The ratio factors</span>
-        </h2>
-        <p class="prose" data-method="model_v1">
-          One factor per region and month: the one in "How one VIIRS fire is counted". Each cell shows its value.
-        </p>
-        <p class="prose" data-method="ratio_v1" hidden>
-          In this data version every VIIRS fire in a region and month counts this factor, whatever its strength. Each cell
-          shows its value.
-        </p>
-        <details class="science">
-          <summary>For scientists: how the factor is estimated</summary>
-          <p data-method="model_v1">
-            The coverage factor <var>k</var>: one value per region, satellite and calendar month, estimated over 2012–2019.
-            Where a region and month had fewer than 50 MODIS hotspots in those years, it is pooled with the two adjacent
-            months, and if that is still too thin, one value covers the region's whole year. NOAA-20 gets its own
-            <var>k</var>, scaled to S-NPP over the years both flew.
-          </p>
-          <p data-method="ratio_v1" hidden>
-            The ratio factor <var>r</var>: MODIS hotspots divided by S-NPP hotspots per region and calendar month over
-            2012–2019, pooled with the two adjacent months where a month had fewer than 50 MODIS hotspots, and over the
-            whole year if that is still too thin. NOAA-20 gets its own <var>r</var>, scaled to S-NPP over the years both
-            flew.
-          </p>
-        </details>
-        <div id="k-table" class="surface" data-loading></div>
-      </section>
-
-      <section id="noaa20" aria-labelledby="noaa20-title">
-        <h2 id="noaa20-title">The hand-over to NOAA-20</h2>
-        <p class="badge" data-mock="validation" hidden>Mock numbers, not results</p>
-        <p class="prose">
-          S-NPP stopped sending data on <span data-fill="viirs-switch">2 November 2026</span>. NOAA-20 carries the same
-          camera and has flown beside it since 2018, so we checked that the two give the same counts.
-        </p>
-        <details class="science">
-          <summary>For scientists: the second switch</summary>
-          <p>
-            NOAA-20 carries the same VIIRS instrument and fire algorithm in the same orbit, about 50 minutes apart, and the
-            two overlap from April 2018, so the second switch is calibrated VIIRS to VIIRS. On the years both flew, the
-            series built on NOAA-20 has to track the one built on S-NPP.
-          </p>
-        </details>
-        <div id="n20-scores"></div>
-        <div class="surface legend-bar" id="n20-legend"></div>
-        <div class="chart-grid" id="n20-charts" data-loading></div>
       </section>
 
       <section id="caveats" aria-labelledby="caveats-title">
@@ -519,6 +411,89 @@
             </li>
           </ul>
         </details>
+      </section>
+
+      <section id="science" aria-labelledby="science-title">
+        <h2 id="science-title">For scientists</h2>
+        <p class="prose">
+          The full scores on hidden years, the detection curve the model learned, the region factors, and the check on the
+          second VIIRS satellite.
+        </p>
+        <section id="scorecard-section" class="science-part" aria-labelledby="scorecard-title">
+          <h3 id="scorecard-title">The scores and the decision</h3>
+          <p class="badge" data-mock="validation" hidden>Mock numbers, not results</p>
+          <p class="prose">
+            Two scores per region, both on hidden years: how far the yearly totals land from MODIS, and how closely the
+            months line up. A method has to do well on both.
+          </p>
+          <p class="prose">
+            The first is the mean error of annual totals against MODIS, the second the Pearson correlation of monthly
+            totals with MODIS. Correlation alone cannot catch a change of scale, since raw VIIRS follows the seasons closely
+            while counting several times too many, so the rule needs both. The model ships when it meets both limits in at
+            least three of the four regions and beats the ratio method's annual error.
+          </p>
+          <div id="scorecard" data-loading></div>
+        </section>
+
+        <section id="detection-section" class="science-part" aria-labelledby="detection-title">
+          <h3 id="detection-title">When MODIS sees a fire</h3>
+          <p class="badge" data-mock="detection" hidden>Mock numbers, not results</p>
+          <p class="prose">
+            This is the curve the model learned: the stronger the fire, the more likely MODIS saw it too. It comes from
+            the moments both cameras looked at the same place.
+          </p>
+          <p class="prose">
+            The detection share comes from a logistic regression on VIIRS fire radiative power (FRP), pixel size, day or
+            night, land cover and cluster size. Its curve against FRP is why one ratio cannot fit every place: small
+            agricultural burns, which MODIS mostly misses, get a low detection share, and large fires, which both sensors
+            see, a high one.
+          </p>
+          <div id="detection" data-loading></div>
+        </section>
+
+        <section id="k-section" class="science-part" aria-labelledby="k-title">
+          <h3 id="k-title">
+            <span data-method="model_v1">The region factors</span>
+            <span data-method="ratio_v1" hidden>The ratio factors</span>
+          </h3>
+          <p class="prose" data-method="model_v1">
+            One factor per region and month: the one in "How one VIIRS fire is counted". Each cell shows its value.
+          </p>
+          <p class="prose" data-method="ratio_v1" hidden>
+            In this data version every VIIRS fire in a region and month counts this factor, whatever its strength. Each cell
+            shows its value.
+          </p>
+          <p class="prose" data-method="model_v1">
+            The coverage factor <var>k</var>: one value per region, satellite and calendar month, estimated over 2012–2019.
+            Where a region and month had fewer than 50 MODIS hotspots in those years, it is pooled with the two adjacent
+            months, and if that is still too thin, one value covers the region's whole year. NOAA-20 gets its own
+            <var>k</var>, scaled to S-NPP over the years both flew.
+          </p>
+          <p class="prose" data-method="ratio_v1" hidden>
+            The ratio factor <var>r</var>: MODIS hotspots divided by S-NPP hotspots per region and calendar month over
+            2012–2019, pooled with the two adjacent months where a month had fewer than 50 MODIS hotspots, and over the
+            whole year if that is still too thin. NOAA-20 gets its own <var>r</var>, scaled to S-NPP over the years both
+            flew.
+          </p>
+          <div id="k-table" class="surface" data-loading></div>
+        </section>
+
+        <section id="noaa20" class="science-part" aria-labelledby="noaa20-title">
+          <h3 id="noaa20-title">The hand-over to NOAA-20</h3>
+          <p class="badge" data-mock="validation" hidden>Mock numbers, not results</p>
+          <p class="prose">
+            S-NPP stopped sending data on <span data-fill="viirs-switch">2 November 2026</span>. NOAA-20 carries the same
+            camera and has flown beside it since 2018, so we checked that the two give the same counts.
+          </p>
+          <p class="prose">
+            NOAA-20 carries the same VIIRS instrument and fire algorithm in the same orbit, about 50 minutes apart, and the
+            two overlap from April 2018, so the second switch is calibrated VIIRS to VIIRS. On the years both flew, the
+            series built on NOAA-20 has to track the one built on S-NPP.
+          </p>
+          <div id="n20-scores"></div>
+          <div class="surface legend-bar" id="n20-legend"></div>
+          <div class="chart-grid" id="n20-charts" data-loading></div>
+        </section>
       </section>
     </main>
     <footer class="site-footer">
