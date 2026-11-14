@@ -755,11 +755,6 @@ a:hover {
   padding: 1.25rem 1.25rem 1.25rem 0;
 }
 
-@media (max-width: 47.99rem) {
-  .map-section {
-    padding: 0 1.25rem 1.25rem;
-  }
-}
 
 /* Which days of fires the map draws: the verdict's month unless the visitor picks dates. */
 .map-range {
@@ -1189,6 +1184,161 @@ table.data .num {
 
   .button {
     transition: none;
+  }
+}
+
+/* Phones: a row of place chips, then the verdict, the map as a window into the page, the
+   calendar, and the examples and data note last. The picker's parts become items of the page
+   grid so they can be placed around the verdict. */
+@media (max-width: 47.99rem) {
+  .appbar__inner {
+    align-items: center;
+    padding: 0.75rem 1rem;
+  }
+
+  .appbar__actions {
+    gap: 0.5rem 0.875rem;
+  }
+
+  .appbar__tagline {
+    flex-basis: 100%;
+    order: 3;
+    font-size: 0.8125rem;
+  }
+
+  .picker {
+    display: contents;
+  }
+
+  .picker > * {
+    margin-inline: 1rem;
+  }
+
+  #picker-heading {
+    order: 1;
+    margin-top: 1rem;
+    margin-bottom: 0.25rem;
+  }
+
+  .regions {
+    display: flex;
+    order: 2;
+    gap: 0.5rem;
+    min-height: 0;
+    margin-inline: 0;
+    padding: 0.25rem 1rem 0.5rem;
+    overflow-x: auto;
+    scroll-snap-type: x proximity;
+    scrollbar-width: none;
+  }
+
+  .regions::-webkit-scrollbar {
+    display: none;
+  }
+
+  .button.region {
+    flex: none;
+    border-color: var(--border);
+    white-space: nowrap;
+    scroll-snap-align: start;
+  }
+
+  .button.region[aria-pressed="true"] {
+    border-color: var(--fg);
+  }
+
+  .picker__own {
+    order: 3;
+  }
+
+  .area-summary {
+    order: 4;
+    margin-top: 0.25rem;
+  }
+
+  .picker > .banner {
+    order: 5;
+  }
+
+  .story {
+    order: 0;
+    padding: 1.25rem 1rem;
+  }
+
+  .verdict {
+    order: 6;
+    padding: 1.25rem 1rem 1.5rem;
+  }
+
+  .verdict__body {
+    min-height: 14rem;
+  }
+
+  .map-section {
+    order: 7;
+    padding: 0 1rem 1.25rem;
+  }
+
+  .map {
+    min-height: clamp(20rem, 55vh, 28rem);
+  }
+
+  .map-range label {
+    flex: 1 1 9rem;
+  }
+
+  .map-range input[type="date"] {
+    width: 100%;
+  }
+
+  .calendar-section {
+    order: 8;
+    padding: 1rem 1rem 1.5rem;
+  }
+
+  .segmented {
+    flex: 1 1 100%;
+  }
+
+  .segmented label {
+    flex: 1 1 0;
+  }
+
+  .segmented span {
+    justify-content: center;
+    width: 100%;
+  }
+
+  .calendar-bar__menus {
+    margin-left: 0;
+  }
+
+  .examples {
+    order: 9;
+    margin-top: 0.5rem;
+  }
+
+  .examples__links {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.25rem 1.25rem;
+  }
+
+  .data-note {
+    order: 10;
+    margin-top: 0.875rem;
+    margin-bottom: 1.25rem;
+  }
+}
+
+/* Touch screens: every control at least 44 px tall. */
+@media (pointer: coarse) {
+  .button,
+  .link-button,
+  .select select,
+  .map-range input[type="date"],
+  .segmented span {
+    min-height: 2.75rem;
   }
 }
 

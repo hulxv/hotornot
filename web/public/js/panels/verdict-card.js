@@ -134,7 +134,7 @@ function yearChart({ month, year, days_covered: days, median, history, complete 
     ),
     plot,
     h("div", { class: "years__axis", "aria-hidden": "true" }, h("span", { text: String(bars[0].year) }), h("span", { text: String(bars.at(-1).year) })),
-    onYear ? h("p", { class: "years__hint", text: "Click a year to see all its fires on the map." }) : null,
+    onYear ? h("p", { class: "years__hint", text: "Choose a year to see all its fires on the map." }) : null,
   );
 }
 

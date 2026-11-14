@@ -230,6 +230,9 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
 
   const map = new maplibregl.Map({
     container: ui.canvas,
+    // On touch screens one finger scrolls the page and two move the map, so the map never traps
+    // a reader scrolling past it.
+    cooperativeGestures: Boolean(globalThis.matchMedia?.("(pointer: coarse)").matches),
     style,
     bounds: overview,
     fitBoundsOptions: { padding: OVERVIEW_PADDING },
