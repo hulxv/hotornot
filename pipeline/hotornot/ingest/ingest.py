@@ -3,7 +3,7 @@
 
     python3 -I ingest.py plan | firms | firms7d | api | cmr | boundaries | summary
     options: --db PATH --workers N --sources modis,viirs-snpp --countries Egypt --regions nile_delta
-             --refresh --by-year
+             --refresh --by-year --until YYYY-MM-DD
 """
 import argparse
 import collections
@@ -103,6 +103,12 @@ CREATE TABLE IF NOT EXISTS country_boundaries (
     geometry    TEXT NOT NULL
 );
 """
+
+
+def today_utc(args):
+    """Today in UTC, or `--until` when given, so a rebuild can stop at the same day as an earlier one."""
+    today = dt.datetime.now(dt.timezone.utc).date()
+    return min(today, args.until) if getattr(args, "until", None) else today
 
 
 def log(msg):
@@ -408,7 +414,7 @@ def api_windows(cfg, args, availability, today):
 def cmd_api(cfg, args):
     key = load_map_key()
     con = connect(args.db)
-    today = dt.datetime.now(dt.timezone.utc).date()
+    today = today_utc(args)
     availability = api_availability(key)
     jobs = []
     for reg, sat, product, day, days in api_windows(cfg, args, availability, today):
@@ -464,9 +470,9 @@ def cmr_footprint(entry):
     return json.dumps(polygons, separators=(",", ":")) if polygons else None
 
 
-def fetch_cmr_slice(product, region, year):
+def fetch_cmr_slice(product, region, year, today):
     start = max(dt.date.fromisoformat(product["start"]), dt.date(year, 1, 1))
-    last = dt.date.fromisoformat(product["end"]) if product["end"] else dt.date.today()
+    last = dt.date.fromisoformat(product["end"]) if product["end"] else today
     end = min(last, dt.date(year, 12, 31))
     west, south, east, north = region["buffered"]
     params = urllib.parse.urlencode({
@@ -495,21 +501,22 @@ def fetch_cmr_slice(product, region, year):
 
 def cmd_cmr(cfg, args):
     con = connect(args.db)
+    today = today_utc(args)
     tasks = []
     for product in cfg["cmr"]:
         first_year = int(product["start"][:4])
-        last_year = int(product["end"][:4]) if product["end"] else dt.date.today().year
+        last_year = int(product["end"][:4]) if product["end"] else today.year
         for region in cfg["regions"]:
             for year in range(first_year, last_year + 1):
                 row = con.execute("SELECT done FROM cmr_slices WHERE short_name=? AND region_id=? AND year=?",
                                   (product["short_name"], region["id"], year)).fetchone()
-                open_ended = product["end"] is None and year == dt.date.today().year
+                open_ended = product["end"] is None and year == today.year
                 if row and row[0] and not args.refresh and not open_ended:
                     continue
                 tasks.append((product, region, year))
     log("%d CMR slices to fetch" % len(tasks))
     with ThreadPoolExecutor(max_workers=args.workers) as pool:
-        futures = {pool.submit(fetch_cmr_slice, *t): t for t in tasks}
+        futures = {pool.submit(fetch_cmr_slice, *t, today): t for t in tasks}
         for i, fut in enumerate(as_completed(futures), 1):
             product, region, year = futures[fut]
             label = "%s %s %d" % (product["short_name"], region["id"], year)
@@ -582,6 +589,8 @@ def main():
     p.add_argument("--regions")
     p.add_argument("--refresh", action="store_true")
     p.add_argument("--by-year", action="store_true")
+    p.add_argument("--until", type=dt.date.fromisoformat, metavar="YYYY-MM-DD",
+                   help="api and cmr: download nothing after this UTC day")
     args = p.parse_args()
     COMMANDS[args.command](load_config(), args)
 
