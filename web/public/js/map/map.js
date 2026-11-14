@@ -14,7 +14,7 @@ import {
   validateBox,
 } from "./geometry.js";
 import { PALESTINE_POINT, labelPatches, palestineLabelLayer } from "./labels.js";
-import { EMPTY, HATCH_IMAGE, MAP_COLORS as COLORS, REGION_LABEL_LAYER, fallbackStyle, overlayLayers, overlaySources } from "./layers.js";
+import { EMPTY, HATCH_IMAGE, MAP_COLORS as COLORS, REGION_LABEL_LAYER, basemapPaint, fallbackStyle, overlayLayers, overlaySources } from "./layers.js";
 
 /**
  * @typedef {import("../../shared/contracts.js").Aoi} Aoi
@@ -318,8 +318,10 @@ export function createMap(container, { regions, onAoiChange = () => {}, onRegion
 
   function addLayers() {
     const styleLayers = map.getStyle().layers;
-    for (const { id, textField, filter } of labelPatches(styleLayers)) {
+    for (const { id, property, value } of basemapPaint(styleLayers)) map.setPaintProperty(id, property, value);
+    for (const { id, textField, paint, filter } of labelPatches(styleLayers)) {
       map.setLayoutProperty(id, "text-field", textField);
+      for (const [property, value] of Object.entries(paint)) map.setPaintProperty(id, property, value);
       if (filter) map.setFilter(id, filter);
     }
     const palestine = palestineLabelLayer(styleLayers, "hon-palestine");

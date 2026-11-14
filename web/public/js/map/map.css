@@ -8,7 +8,7 @@
   --hon-hover: rgb(94 227 208 / 0.12);
   --hon-accent: var(--accent, #5ee3d0);
   /* The basemap's land color, under the canvas before tiles draw and under the legend swatches. */
-  --hon-land: #45516e;
+  --hon-land: #4f5d7c;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -237,7 +237,7 @@
 }
 
 .hon-map__swatch--counted {
-  background: linear-gradient(rgb(94 227 208 / 0.35), rgb(94 227 208 / 0.35)), var(--hon-land);
+  background: linear-gradient(rgb(94 227 208 / 0.28), rgb(94 227 208 / 0.28)), var(--hon-land);
 }
 
 .hon-map__swatch--no-data {
@@ -249,7 +249,7 @@
 }
 
 .hon-map__swatch--outside {
-  background: linear-gradient(rgb(5 7 10 / 0.6), rgb(5 7 10 / 0.6)), var(--hon-land);
+  background: linear-gradient(rgb(5 7 10 / 0.42), rgb(5 7 10 / 0.42)), var(--hon-land);
 }
 
 .hon-map__sr-only {

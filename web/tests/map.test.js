@@ -17,7 +17,7 @@ import {
   validateBox,
 } from "../public/js/map/geometry.js";
 import { ENGLISH_NAME, PALESTINE_POINT, labelPatches, palestineLabelLayer } from "../public/js/map/labels.js";
-import { REGION_LABEL_LAYER, fallbackStyle, overlayLayers, overlaySources } from "../public/js/map/layers.js";
+import { REGION_LABEL_LAYER, basemapPaint, fallbackStyle, overlayLayers, overlaySources } from "../public/js/map/layers.js";
 import { cellPolygon as sharedCellPolygon, cellsInBbox } from "../public/shared/grid.js";
 import metadata from "../mocks/metadata.json" with { type: "json" };
 
@@ -385,9 +385,11 @@ const COUNTRY_LAYERS = ["label_country_3", "label_country_2", "label_country_1"]
  */
 function withOverlay(style) {
   const layers = structuredClone(style.layers);
-  for (const { id, textField, filter } of labelPatches(layers)) {
+  for (const { id, property, value } of basemapPaint(layers)) layers.find((candidate) => candidate.id === id).paint[property] = value;
+  for (const { id, textField, paint, filter } of labelPatches(layers)) {
     const layer = layers.find((candidate) => candidate.id === id);
     layer.layout["text-field"] = textField;
+    layer.paint = { ...layer.paint, ...paint };
     if (filter) layer.filter = filter;
   }
   const sources = { ...style.sources, ...overlaySources(regions) };
@@ -427,7 +429,8 @@ describe("basemap labels on the liberty style", () => {
     assert.equal(layer.layout["text-field"], "Palestine");
     assert.deepEqual(layer.layout["text-font"], ["Noto Sans Bold"]);
     assert.deepEqual(layer.layout["text-size"], ["interpolate", ["linear"], ["zoom"], 3, 9, 7, 17]);
-    assert.equal(layer.paint["text-color"], "#000");
+    assert.equal(layer.paint["text-color"], "#ffffff");
+    assert.equal(layer.paint["text-halo-color"], "#0e1626");
     assert.equal(layer.minzoom, 2);
     assert.equal(layer.maxzoom, 9);
     assert.equal(layer.source, "hon-palestine");
@@ -542,5 +545,22 @@ describe("the map style against the vendored MapLibre", () => {
     assert.ok(englishIs("Cairo", { name: "القاهرة", name_en: "Cairo" }));
     assert.ok(englishIs("al-Qahira", { name: "القاهرة", "name:latin": "al-Qahira" }));
     assert.ok(englishIs("", { name: "القاهرة", "name:nonlatin": "القاهرة" }));
+  });
+});
+
+describe("basemap contrast", () => {
+  it("darkens the water, brightens the borders, and only touches layers the style has", () => {
+    const layers = [{ id: "background" }, { id: "water" }, { id: "boundary_country_z5-" }, { id: "park" }];
+    const patches = basemapPaint(layers);
+    assert.deepEqual([...new Set(patches.map((patch) => patch.id))], ["background", "water", "boundary_country_z5-"]);
+    assert.deepEqual(patches.find((patch) => patch.id === "water"), { id: "water", property: "fill-color", value: "#0e1626" });
+    assert.deepEqual(basemapPaint([{ id: "hon-fallback-background" }]), []);
+  });
+
+  it("gives every name label light text on a dark halo", () => {
+    for (const { paint } of labelPatches(LIBERTY_LAYERS)) {
+      assert.match(paint["text-color"], /^#[0-9a-f]{6}$/);
+      assert.equal(paint["text-halo-color"], "#0e1626");
+    }
   });
 });
