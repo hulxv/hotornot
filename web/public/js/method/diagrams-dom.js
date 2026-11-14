@@ -21,6 +21,7 @@ import {
   timelineLayout,
   yearBlocksHtml,
 } from "./diagrams.js";
+import { mountExplorables } from "./explorables.js";
 import { escapeHtml } from "./html.js";
 import { formatDate } from "./transform.js";
 
@@ -120,7 +121,8 @@ export function mountDiagrams(body, doc = document) {
   }
 
   const player = mountTests(body, doc, fit);
-  return { observer, player };
+  const explorables = mountExplorables(doc);
+  return { observer, player, explorables };
 }
 
 /**

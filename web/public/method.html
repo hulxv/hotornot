@@ -11,6 +11,9 @@
     <link rel="modulepreload" href="/js/method/diagrams-dom.js">
     <link rel="modulepreload" href="/js/method/diagrams.js">
     <link rel="modulepreload" href="/js/method/facts.js">
+    <link rel="modulepreload" href="/js/method/explorables.js">
+    <link rel="modulepreload" href="/js/method/samples/one-day.js">
+    <link rel="modulepreload" href="/js/method/samples/flare.js">
     <link rel="modulepreload" href="/js/method/option.js">
     <link rel="modulepreload" href="/js/method/html.js">
     <link rel="modulepreload" href="/js/method/transform.js">
@@ -214,6 +217,108 @@
         <ol id="pipeline-steps" class="pipeline"></ol>
         <div id="pipeline-detail" class="pipeline-detail" aria-live="polite"></div>
         <p id="pipeline-run" class="muted small"></p>
+
+        <h3 id="day-heading" class="ex-heading">Try it: follow one real day</h3>
+        <p class="prose">
+          These are the real detections from one day over the Nile Delta, 13 September 2017, in the season when farmers
+          burn rice straw. Step through what the pipeline does with them, or pick a step above.
+        </p>
+        <figure class="diagram explorable" id="day-widget">
+          <div class="player" id="day-controls">
+            <button type="button" id="day-back">Back</button>
+            <button type="button" id="day-play">Play</button>
+            <button type="button" id="day-next">Next</button>
+            <button type="button" id="day-reset">Reset</button>
+            <label class="ex-speed" for="day-speed">Speed</label>
+            <select id="day-speed">
+              <option value="slow">Slow</option>
+              <option value="normal" selected>Normal</option>
+              <option value="fast">Fast</option>
+            </select>
+          </div>
+          <p id="day-motion-note" class="muted small" hidden>Play is off because your device asks for less motion. Back and Next still work.</p>
+          <ol id="day-steps" class="ex-steps" aria-label="Steps"></ol>
+          <p id="day-title" class="step-title" aria-live="polite"></p>
+          <p id="day-text" class="step-text"></p>
+          <dl id="day-counters" class="ex-counters"></dl>
+          <div class="ex-maps">
+            <div id="day-map" class="ex-box"></div>
+            <div class="ex-close">
+              <p class="camera-name">Close-up <span class="muted">8 km across, the dashed square on the map</span></p>
+              <div id="day-closeup" class="ex-box"></div>
+            </div>
+          </div>
+          <ul class="dg-legend">
+            <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><circle class="ex-dot ex-viirs" cx="7" cy="7" r="5"/></svg>VIIRS on S-NPP</li>
+            <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><circle class="ex-dot ex-modis" cx="7" cy="7" r="5"/></svg>MODIS on Aqua</li>
+            <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><circle class="ex-dot ex-aside" cx="7" cy="7" r="4.5"/></svg>Set aside: not a vegetation fire</li>
+            <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><rect class="ex-foot" x="2" y="2" width="10" height="10"/></svg>MODIS square, real size</li>
+            <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><rect class="ex-cell" x="1" y="1" width="12" height="12" fill-opacity="0.5"/></svg>5 km square: its weights added up</li>
+          </ul>
+          <div class="dg-control ex-pick-row">
+            <label for="day-pick">Look at one detection <span class="muted">(or point at a dot)</span></label>
+            <input type="range" id="day-pick" min="1" max="67" step="1" value="1">
+            <output id="day-pick-info" for="day-pick"></output>
+          </div>
+          <p class="camera-name">September 2017, day by day</p>
+          <div id="day-month" class="ex-box ex-month"></div>
+          <p id="day-month-text" class="dg-sentence"></p>
+          <p class="camera-name ex-log-title">What happened</p>
+          <ol id="day-log" class="ex-log" aria-label="What happened so far"></ol>
+          <p id="day-words" class="visually-hidden"></p>
+          <figcaption>
+            Every dot is a real record from our pipeline. Out of 46 VIIRS fires, the day ends up counting as less than 4 MODIS
+            fires: that is how the old and the new camera are made to count the same way.
+          </figcaption>
+        </figure>
+        <details class="science">
+          <summary>For scientists: this day, row by row</summary>
+          <div id="day-science"></div>
+        </details>
+
+        <h3 id="flare-heading" class="ex-heading">Try it: spot the gas flare</h3>
+        <p class="prose">
+          NASA has not labelled the newest months yet, so the Clean step needs a rule to tell a gas flare from a farm fire. A
+          flare burns in the same spot day after day; a field burns once. Here are 90 real days near Idku, on the coast east of
+          Alexandria.
+        </p>
+        <figure class="diagram explorable" id="flare-widget">
+          <div class="dg-control">
+            <label for="flare-day">Day</label>
+            <input type="range" id="flare-day" min="1" max="90" step="1" value="1">
+            <output id="flare-day-value" for="flare-day">Day 1 of 90</output>
+          </div>
+          <div class="player" id="flare-controls">
+            <button type="button" id="flare-play">Play</button>
+            <button type="button" id="flare-reset">Reset</button>
+            <label class="ex-speed" for="flare-speed">Speed</label>
+            <select id="flare-speed">
+              <option value="slow">Slow</option>
+              <option value="normal" selected>Normal</option>
+              <option value="fast">Fast</option>
+            </select>
+          </div>
+          <p id="flare-motion-note" class="muted small" hidden>Play is off because your device asks for less motion. The day slider still works.</p>
+          <dl id="flare-counters" class="ex-counters"></dl>
+          <div id="flare-map" class="ex-box ex-flare-map"></div>
+          <ul class="dg-legend">
+            <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><circle class="ex-today" cx="7" cy="7" r="5"/></svg>Seen today, by day</li>
+            <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><circle class="ex-today-night" cx="7" cy="7" r="4.5"/></svg>Seen today, at night</li>
+            <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><rect class="ex-spot" x="1" y="1" width="12" height="12" fill-opacity="0.2"/></svg>A spot about 400 m across: the number is the days it showed heat</li>
+            <li><svg width="14" height="14" viewBox="0 0 14 14" aria-hidden="true" focusable="false"><rect class="ex-spot-flag" x="2" y="2" width="10" height="10"/></svg>Seen on 20 days or more: a steady heat source</li>
+          </ul>
+          <p id="flare-news" class="diagram-info"></p>
+          <p id="flare-live" class="visually-hidden" aria-live="polite"></p>
+          <p id="flare-words" class="visually-hidden"></p>
+          <figcaption>
+            Each square is a spot 0.004° across, about 400 m. A spot that shows heat on 20 or more days within 90 days is a
+            steady heat source, such as a gas flare, and its detections are set aside. These are the numbers the pipeline uses.
+          </figcaption>
+        </figure>
+        <details class="science">
+          <summary>For scientists: the flare rule and this box</summary>
+          <div id="flare-science"></div>
+        </details>
       </section>
 
       <section id="seam" aria-labelledby="seam-title">
