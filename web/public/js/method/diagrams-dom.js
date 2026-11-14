@@ -31,7 +31,7 @@ const CAMERAS_DEFAULT_MW = 10;
 const COUNTED_DEFAULT_MW = 5;
 
 /** The value a control holds after an input or change event. @param {any} control */
-const valueOf = (control) => control.value ?? control.getAttribute?.("value") ?? "";
+const controlValue = (control) => control.value ?? control.getAttribute?.("value") ?? "";
 
 /**
  * Draws the five diagrams into method.html and wires their controls. `body` is the
@@ -98,7 +98,7 @@ export function mountDiagrams(body, doc = document) {
       strength.setAttribute("aria-valuetext", `${formatMw(mw)}: ${counts}`);
     };
     draw(CAMERAS_DEFAULT_MW);
-    strength.addEventListener("input", (event) => draw(10 ** Number(valueOf(event.target))));
+    strength.addEventListener("input", (event) => draw(10 ** Number(controlValue(event.target))));
   }
 
   mountCounted(body, doc, fit);
@@ -188,15 +188,15 @@ function mountCounted(body, doc, fit) {
   if (curve) sized = fit(curveBox, (width) => (curveBox.innerHTML = curveSvg(curve, { width, frp: state.frp, p: curveAt(curve.frp, curve.p, state.frp) })), 560);
   draw();
   slider?.addEventListener("input", (event) => {
-    state.frp = 10 ** Number(valueOf(event.target));
+    state.frp = 10 ** Number(controlValue(event.target));
     draw();
   });
   region?.addEventListener("change", (event) => {
-    state.regionId = valueOf(event.target);
+    state.regionId = controlValue(event.target);
     draw();
   });
   month?.addEventListener("change", (event) => {
-    state.month = Number(valueOf(event.target));
+    state.month = Number(controlValue(event.target));
     draw();
   });
 }

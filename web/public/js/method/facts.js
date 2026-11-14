@@ -119,7 +119,7 @@ export const PATCH_FIRES = Object.freeze(
   [
     { x: 0.1875, y: 0.5625, share: 0.4 },
     { x: 0.5625, y: 0.5625, share: 0.4 },
-    { x: 0.9375, y: 0.5625, share: 0.4 },
+    { x: 0.5625, y: 0.1875, share: 0.4 },
     { x: 1.6875, y: 1.3125, share: 1 },
     { x: 2.4375, y: 2.4375, share: 0.5 },
     { x: 0.5625, y: 2.4375, share: 0.25 },

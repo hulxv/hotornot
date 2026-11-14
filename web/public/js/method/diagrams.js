@@ -322,7 +322,13 @@ export function curveSvg(curve, { width, frp, p }) {
   const line = curve.frp.map((value, i) => `${i === 0 ? "M" : "L"}${round1(x(value))} ${round1(y(curve.p[i]))}`).join("");
   const mx = round1(x(Math.min(Math.max(frp, curve.frp[0]), curve.frp.at(-1))));
   const my = round1(y(p));
-  const flip = mx > m.left + plotW - 60;
+  const nearRight = mx > m.left + plotW - 40;
+  const tag =
+    p > 0.8
+      ? { x: nearRight ? mx - 10 : mx + 10, y: my + 18, anchor: nearRight ? "end" : "start" }
+      : mx < m.left + 50
+        ? { x: mx + 10, y: my - 8, anchor: "start" }
+        : { x: mx - 10, y: my - 8, anchor: "end" };
   const axisName = width < 420 ? "Fire strength, MW" : "Fire strength in megawatts (each step is 10 times stronger)";
   const samples = [1, 10, 100].filter((value) => value >= curve.frp[0] && value <= curve.frp.at(-1));
   const label =
@@ -334,7 +340,7 @@ export function curveSvg(curve, { width, frp, p }) {
     `<text class="dg-small dg-muted" x="${round1(m.left + plotW / 2)}" y="${height - 6}" text-anchor="middle">${axisName}</text>` +
     `<path class="cv-guide" d="M${mx} ${round1(y(0))}V${my}H${m.left}"/><path class="cv-line" d="${line}"/>` +
     `<circle class="cv-marker" cx="${mx}" cy="${my}" r="6"/>` +
-    `<text class="dg-label" x="${flip ? mx - 10 : mx + 10}" y="${round1(Math.max(m.top + 4, my - 8))}" text-anchor="${flip ? "end" : "start"}">${p < 0.005 ? "<1" : Math.round(p * 100)}%</text>` +
+    `<text class="dg-label" x="${round1(tag.x)}" y="${round1(tag.y)}" text-anchor="${tag.anchor}">${p < 0.005 ? "&lt;1" : Math.round(p * 100)}%</text>` +
     `</svg>`
   );
 }
